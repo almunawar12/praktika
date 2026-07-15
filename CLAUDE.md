@@ -14,9 +14,9 @@ Tujuan sistem adalah membantu sekolah memonitor aktivitas siswa selama PKL mulai
 
 Backend:
 
-- Laravel 12
-- PHP 8.4+
-- PostgreSQL
+- Laravel 13 (terpasang: 13.20)
+- PHP 8.3 (terpasang: 8.3.31; `composer.json` di-pin `^8.3`)
+- PostgreSQL (terpasang: 17.2)
 
 Frontend:
 
@@ -159,6 +159,8 @@ Avoid:
 - Login
 - Logout
 - Forgot Password
+
+Tidak ada registrasi publik. Akun dibuat oleh Admin (PRD § 3).
 
 ---
 

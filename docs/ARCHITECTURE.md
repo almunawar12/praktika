@@ -22,6 +22,8 @@ Dokumen ini adalah **acuan tunggal** untuk implementasi. Jika ada konflik antara
 | ADR-07 | **Verifikasi absensi = kolom pada `attendances`**, bukan tabel approvals | Absensi hanya 1 stage verifikasi (pembimbing), tidak butuh generalisasi. |
 | ADR-08 | **Export laporan async via queue** (`report_exports`) | Rekap PDF/Excel se-angkatan bisa ribuan baris → request timeout. Database queue sudah di stack. |
 | ADR-09 | **Inertia-first, tanpa REST API publik di v1** | Semua konsumsi lewat Inertia. Kontrak JSON di CLAUDE.md § API Standards diterapkan pada endpoint XHR/aksi non-Inertia saja. Sanctum disiapkan untuk roadmap Mobile App. |
+| ADR-10 | **Tidak ada `Gate::before` bypass untuk Super Admin** (mengoreksi § 4.1) | `RolePermissionSeeder` memberi Super Admin seluruh permission secara eksplisit, jadi bypass redundan. Lebih buruk: bypass mengembalikan `true` **sebelum** `UserPolicy` jalan, sehingga penjaga "tidak boleh hapus akun sendiri" dan "super admin terakhir tidak boleh dihapus" mati justru untuk role yang paling perlu dijaga. Diuji di `tests/Feature/UserPolicyTest.php`. |
+| ADR-11 | **Tidak ada registrasi publik** | PRD § 3: akun dibuat Admin. Route `register` bawaan Breeze dihapus — kalau dibiarkan, siapa pun bisa membuat akun login. |
 
 ### Deviasi dari dokumen sumber — wajib diketahui
 
@@ -448,13 +450,13 @@ Siswa                    → placements.student_id   = user.student.id
 
 | Role | Slug | Cakupan data |
 |---|---|---|
-| Super Admin | `super-admin` | Global. Bypass semua policy via `Gate::before`. |
+| Super Admin | `super-admin` | Global. Memegang seluruh permission secara eksplisit dari seeder — **bukan** lewat bypass. |
 | Admin PKL | `admin-pkl` | Global data PKL. Tidak bisa kelola user/role/settings sistem. |
 | Guru Pembimbing | `guru-pembimbing` | Hanya placement dengan `teacher_id` miliknya. |
 | Pembimbing Industri | `pembimbing-industri` | Hanya placement di `company_id` miliknya. |
 | Siswa | `siswa` | Hanya placement miliknya. |
 
-> `super-admin` diberi bypass di `AppServiceProvider::boot()` dengan `Gate::before(fn ($user) => $user->hasRole('super-admin') ? true : null)`. **Harus `return null`, bukan `false`**, saat bukan super admin — mengembalikan `false` akan memblokir seluruh policy lain.
+> **Dikoreksi saat implementasi (ADR-10):** rencana awal memakai `Gate::before` untuk mem-bypass Super Admin. Itu dibatalkan. Karena seeder sudah memberi Super Admin seluruh permission, bypass tidak menambah apa pun — tapi merusak: ia menjawab `true` sebelum `UserPolicy::delete()` sempat menolak Super Admin menghapus akunnya sendiri atau menghapus Super Admin terakhir. Otorisasi kini lewat policy untuk semua role tanpa kecuali.
 
 ### 4.2 Daftar Permission
 
