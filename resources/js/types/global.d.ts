@@ -1,4 +1,6 @@
+import '@inertiajs/core';
 import type { Auth } from '@/types/auth';
+import type { NavGroup } from '@/types/nav';
 
 declare module 'react' {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -12,7 +14,12 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
-            sidebarOpen: boolean;
+            sidebar: NavGroup[];
+            flash: {
+                status: string | null;
+                success: string | null;
+                error: string | null;
+            };
             [key: string]: unknown;
         };
     }

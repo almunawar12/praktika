@@ -1,14 +1,25 @@
+export type RoleName =
+    | 'super-admin'
+    | 'admin-pkl'
+    | 'guru-pembimbing'
+    | 'pembimbing-industri'
+    | 'siswa';
+
+/**
+ * Mirrors HandleInertiaRequests::userPayload() — deliberately narrower than the
+ * User model, so adding a column to `users` never leaks it into the page payload.
+ */
 export type User = {
-    id: number;
+    id: string;
     name: string;
     email: string;
-    avatar?: string;
-    email_verified_at: string | null;
-    created_at: string;
-    updated_at: string;
-    [key: string]: unknown; // This allows for additional properties...
+    phone: string | null;
+    avatar: string | null;
+    role: RoleName | null;
+    roleLabel: string | null;
 };
 
 export type Auth = {
-    user: User;
+    user: User | null;
+    permissions: string[];
 };

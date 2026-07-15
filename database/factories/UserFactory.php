@@ -33,6 +33,12 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'phone' => fake()->numerify('08##########'),
+            // Nullable columns are set explicitly: `create()` does not re-read the row,
+            // so anything omitted here is *missing* on the in-memory model and blows up
+            // under `Model::shouldBeStrict()` the moment something reads it.
+            'avatar_path' => null,
+            'last_login_at' => null,
+            'last_login_ip' => null,
             'is_active' => true,
             'remember_token' => Str::random(10),
         ];
