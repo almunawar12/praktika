@@ -1,10 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
+use App\Listeners\LogFailedLogin;
+use App\Listeners\LogLockout;
+use App\Listeners\LogSuccessfulLogin;
+use App\Listeners\LogSuccessfulLogout;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -24,6 +36,22 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureAuthorization();
+        $this->configureAuditTrail();
+    }
+
+    /**
+     * Audit trail for authentication events.
+     *
+     * Registered explicitly rather than relying on listener auto-discovery: a
+     * silently unregistered listener means a silently missing audit trail.
+     */
+    protected function configureAuditTrail(): void
+    {
+        Event::listen(Login::class, LogSuccessfulLogin::class);
+        Event::listen(Logout::class, LogSuccessfulLogout::class);
+        Event::listen(Failed::class, LogFailedLogin::class);
+        Event::listen(Lockout::class, LogLockout::class);
     }
 
     /**
@@ -32,6 +60,8 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        Model::shouldBeStrict(! app()->isProduction());
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
@@ -46,5 +76,20 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    /**
+     * Authorization wiring.
+     *
+     * Note: Praktika deliberately does NOT use a `Gate::before()` Super Admin bypass.
+     * RolePermissionSeeder grants the Super Admin role every permission in
+     * PermissionCatalog explicitly, so a bypass would be redundant — and worse, it
+     * would return `true` before UserPolicy runs, silently disabling the guards that
+     * stop a Super Admin from deleting their own account or the last Super Admin.
+     * Authorization therefore flows through policies for every role alike.
+     */
+    protected function configureAuthorization(): void
+    {
+        //
     }
 }
