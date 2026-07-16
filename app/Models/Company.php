@@ -26,13 +26,19 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string $pic_phone
  * @property int $quota
  * @property bool $is_active
+ * @property string|null $latitude
+ * @property string|null $longitude
+ * @property int|null $geofence_radius_m
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property CarbonImmutable|null $deleted_at
  * @property-read Collection<int, Placement> $placements
  * @property-read Collection<int, Placement> $activePlacements
  */
-#[Fillable(['name', 'business_field', 'address', 'pic_name', 'pic_phone', 'quota', 'is_active'])]
+#[Fillable([
+    'name', 'business_field', 'address', 'pic_name', 'pic_phone', 'quota', 'is_active',
+    'latitude', 'longitude', 'geofence_radius_m',
+])]
 class Company extends Model
 {
     /** @use HasFactory<CompanyFactory> */
@@ -50,6 +56,7 @@ class Company extends Model
         return [
             'quota' => 'integer',
             'is_active' => 'boolean',
+            'geofence_radius_m' => 'integer',
         ];
     }
 
@@ -75,7 +82,10 @@ class Company extends Model
     {
         return LogOptions::defaults()
             ->useLogName('company')
-            ->logOnly(['name', 'business_field', 'address', 'pic_name', 'pic_phone', 'quota', 'is_active'])
+            ->logOnly([
+                'name', 'business_field', 'address', 'pic_name', 'pic_phone', 'quota', 'is_active',
+                'latitude', 'longitude', 'geofence_radius_m',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

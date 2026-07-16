@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             $this->call([
                 MasterDataSeeder::class,
                 PlacementSeeder::class,
+                AttendanceSeeder::class,
             ]);
         }
     }

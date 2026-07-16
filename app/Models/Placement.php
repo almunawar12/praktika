@@ -10,10 +10,12 @@ use Carbon\CarbonImmutable;
 use Database\Factories\PlacementFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -33,6 +35,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read Student $student
  * @property-read Company $company
  * @property-read Teacher $teacher
+ * @property-read Collection<int, Attendance> $attendances
  */
 #[Fillable(['student_id', 'company_id', 'teacher_id', 'status', 'start_date', 'end_date', 'cancel_reason'])]
 class Placement extends Model
@@ -87,6 +90,14 @@ class Placement extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    /**
+     * @return HasMany<Attendance, $this>
+     */
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
     }
 
     /**

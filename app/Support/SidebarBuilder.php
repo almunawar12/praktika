@@ -41,8 +41,11 @@ final class SidebarBuilder
             ]),
 
             $this->group('PKL', [
+                // Only a student holds attendances.checkIn, so this surfaces for them
+                // alone — no role check needed here.
+                $this->item('Absensi Hari Ini', 'Fingerprint', 'attendances.checkIn', route: 'attendances.check-in.create'),
                 $this->item('Penempatan', 'MapPin', 'placements.viewAny', route: 'pkl.placements.index'),
-                $this->item('Absensi', 'CalendarCheck', 'attendances.viewAny'),
+                $this->item('Riwayat Absensi', 'CalendarCheck', 'attendances.viewAny', route: 'attendances.index'),
                 $this->item('Jurnal', 'NotebookPen', 'journals.viewAny'),
                 $this->item('Monitoring', 'ClipboardCheck', 'monitorings.viewAny'),
                 $this->item('Penilaian', 'Star', 'assessments.viewAny'),

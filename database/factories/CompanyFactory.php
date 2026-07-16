@@ -32,6 +32,10 @@ class CompanyFactory extends Factory
             'pic_phone' => fake()->numerify('08##########'),
             'quota' => fake()->numberBetween(1, 20),
             'is_active' => true,
+            // Roughly Bandung/West Java, so seeded geofences sit somewhere plausible.
+            'latitude' => fake()->latitude(-7.0, -6.8),
+            'longitude' => fake()->longitude(107.5, 107.7),
+            'geofence_radius_m' => fake()->randomElement([100, 150, 200, 300]),
         ];
     }
 
@@ -39,6 +43,18 @@ class CompanyFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'is_active' => false,
+        ]);
+    }
+
+    /**
+     * A company whose coordinates were never filled in — no geofence to enforce.
+     */
+    public function withoutGeofence(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'latitude' => null,
+            'longitude' => null,
+            'geofence_radius_m' => null,
         ]);
     }
 }

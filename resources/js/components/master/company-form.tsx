@@ -18,6 +18,9 @@ export type CompanyValues = {
     pic_phone: string;
     quota: number;
     is_active: boolean;
+    latitude: string | null;
+    longitude: string | null;
+    geofence_radius_m: number | null;
 };
 
 type Props = {
@@ -168,6 +171,78 @@ export function CompanyForm({ action, method, values, submitLabel }: Props) {
                                 }
                             />
                         </Field>
+
+                        <div className="grid gap-4 rounded-lg border p-3">
+                            <div className="grid gap-0.5">
+                                <p className="text-sm font-medium">
+                                    Lokasi Absensi
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Opsional. Jika diisi, siswa hanya dapat
+                                    absen dalam radius ini. Kosongkan jika
+                                    perusahaan tidak menerapkan batas lokasi.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <Field
+                                    id="latitude"
+                                    label="Lintang"
+                                    error={errors.latitude}
+                                >
+                                    <Input
+                                        id="latitude"
+                                        name="latitude"
+                                        type="number"
+                                        step="any"
+                                        min={-90}
+                                        max={90}
+                                        placeholder="-6.914744"
+                                        defaultValue={values?.latitude ?? ''}
+                                        aria-invalid={Boolean(errors.latitude)}
+                                    />
+                                </Field>
+
+                                <Field
+                                    id="longitude"
+                                    label="Bujur"
+                                    error={errors.longitude}
+                                >
+                                    <Input
+                                        id="longitude"
+                                        name="longitude"
+                                        type="number"
+                                        step="any"
+                                        min={-180}
+                                        max={180}
+                                        placeholder="107.609810"
+                                        defaultValue={values?.longitude ?? ''}
+                                        aria-invalid={Boolean(errors.longitude)}
+                                    />
+                                </Field>
+
+                                <Field
+                                    id="geofence_radius_m"
+                                    label="Radius (meter)"
+                                    error={errors.geofence_radius_m}
+                                >
+                                    <Input
+                                        id="geofence_radius_m"
+                                        name="geofence_radius_m"
+                                        type="number"
+                                        min={10}
+                                        max={5000}
+                                        placeholder="200"
+                                        defaultValue={
+                                            values?.geofence_radius_m ?? ''
+                                        }
+                                        aria-invalid={Boolean(
+                                            errors.geofence_radius_m,
+                                        )}
+                                    />
+                                </Field>
+                            </div>
+                        </div>
 
                         <div className="flex items-center gap-3 rounded-lg border p-3">
                             {/* Switch is not a native input, so the value is posted through

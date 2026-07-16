@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AttendanceStatus;
 use App\Enums\PlacementStatus;
 use App\Enums\RoleName;
+use App\Enums\VerificationStatus;
 use App\Models\Activity;
+use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\Placement;
 use App\Models\Student;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 
 /**
  * Assembles the dashboard payload for the authenticated user.
@@ -57,17 +61,17 @@ class DashboardService
             ],
             RoleName::AdminPkl => [
                 $this->stat('PKL Aktif', 'MapPin', $placements[PlacementStatus::Active->value]),
+                $this->stat('Hadir Hari Ini', 'CalendarCheck', $this->presentToday($user)),
+                $this->stat('Absensi Perlu Verifikasi', 'Fingerprint', $this->awaitingVerification($user)),
                 $this->stat('PKL Draft', 'FileText', $placements[PlacementStatus::Draft->value]),
                 $this->stat('PKL Selesai', 'Award', $placements[PlacementStatus::Completed->value]),
-                $this->stat('Total Siswa', 'GraduationCap', Student::count()),
                 $this->pending('Jurnal Pending', 'NotebookPen'),
-                $this->pending('Kehadiran Hari Ini', 'CalendarCheck'),
             ],
             RoleName::GuruPembimbing => [
                 $this->stat('Siswa Bimbingan Aktif', 'GraduationCap', $placements[PlacementStatus::Active->value]),
-                $this->stat('Bimbingan Selesai', 'Award', $placements[PlacementStatus::Completed->value]),
+                $this->stat('Hadir Hari Ini', 'CalendarCheck', $this->presentToday($user)),
+                $this->stat('Absensi Perlu Verifikasi', 'Fingerprint', $this->awaitingVerification($user)),
                 $this->pending('Jurnal Menunggu Review', 'NotebookPen'),
-                $this->pending('Absensi Perlu Verifikasi', 'CalendarCheck'),
             ],
             RoleName::PembimbingIndustri => [
                 // Scoped by company, which needs the company_supervisors module.
@@ -78,12 +82,44 @@ class DashboardService
             ],
             RoleName::Siswa => [
                 $this->stat('PKL Aktif', 'MapPin', $placements[PlacementStatus::Active->value]),
-                $this->pending('Status Absensi Hari Ini', 'CalendarCheck'),
+                $this->stat('Total Hadir', 'CalendarCheck', $this->presentCount($user)),
                 $this->pending('Kelengkapan Jurnal', 'NotebookPen'),
                 $this->pending('Nilai Akhir', 'Award'),
             ],
             null => [],
         };
+    }
+
+    /**
+     * Students recorded present today, within what this user may see.
+     *
+     * Rejected records are excluded: a claim that was refused is not attendance.
+     */
+    private function presentToday(User $user): int
+    {
+        return Attendance::query()
+            ->visibleTo($user)
+            ->whereDate('date', CarbonImmutable::now()->toDateString())
+            ->where('status', AttendanceStatus::Present)
+            ->where('verification_status', '!=', VerificationStatus::Rejected)
+            ->count();
+    }
+
+    private function awaitingVerification(User $user): int
+    {
+        return Attendance::query()
+            ->visibleTo($user)
+            ->awaitingVerification()
+            ->count();
+    }
+
+    private function presentCount(User $user): int
+    {
+        return Attendance::query()
+            ->visibleTo($user)
+            ->where('status', AttendanceStatus::Present)
+            ->where('verification_status', '!=', VerificationStatus::Rejected)
+            ->count();
     }
 
     /**

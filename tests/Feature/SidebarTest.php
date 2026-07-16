@@ -39,7 +39,7 @@ test('admin pkl sees pkl management but not user or role management', function (
 test('siswa sees only their own pkl items', function (): void {
     $labels = sidebarLabels(userWithRole(RoleName::Siswa));
 
-    expect($labels)->toContain('Dashboard', 'Absensi', 'Jurnal')
+    expect($labels)->toContain('Dashboard', 'Absensi Hari Ini', 'Riwayat Absensi', 'Jurnal')
         ->and($labels)->not->toContain('Pengguna')
         ->and($labels)->not->toContain('Siswa')
         ->and($labels)->not->toContain('Penilaian')

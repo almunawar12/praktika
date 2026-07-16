@@ -1,8 +1,19 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+declare(strict_types=1);
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+use App\Jobs\MarkAbsentStudentsJob;
+use Illuminate\Support\Facades\Schedule;
+
+/*
+| Requires a scheduler to be running in each environment:
+|   * * * * * cd /path && php artisan schedule:run >> /dev/null 2>&1
+| Without it, students who never open the app are never marked absent.
+*/
+
+// After working hours, so a late check-in is not overwritten by an absence.
+Schedule::job(new MarkAbsentStudentsJob)
+    ->dailyAt('18:00')
+    ->weekdays()
+    ->name('mark-absent-students')
+    ->withoutOverlapping();

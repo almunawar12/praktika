@@ -29,6 +29,12 @@ class StoreCompanyRequest extends FormRequest
             // Capped at the smallint column's range; a quota of 0 means "not accepting".
             'quota' => ['required', 'integer', 'min:0', 'max:65535'],
             'is_active' => ['sometimes', 'boolean'],
+            // Coordinates drive the attendance geofence. Optional — a company without
+            // them simply has no geofence — but latitude and longitude are meaningless
+            // apart, so each requires the other (mirrors companies_coordinates_check).
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
+            'geofence_radius_m' => ['nullable', 'integer', 'min:10', 'max:5000', 'required_with:latitude'],
         ];
     }
 
@@ -44,6 +50,19 @@ class StoreCompanyRequest extends FormRequest
             'pic_name' => 'nama PIC',
             'pic_phone' => 'no HP PIC',
             'quota' => 'kuota',
+            'latitude' => 'lintang',
+            'longitude' => 'bujur',
+            'geofence_radius_m' => 'radius absensi',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'geofence_radius_m.required_with' => 'Radius absensi wajib diisi jika koordinat diatur.',
         ];
     }
 }
