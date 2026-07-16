@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\CompanySupervisor;
 use App\Models\Placement;
 use App\Models\Student;
+use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia;
 
 /*
@@ -45,7 +46,16 @@ test('a supervisor can not open a placement at another company', function (): vo
 
 test('a supervisor sees attendance from their own company only', function (): void {
     $placement = Placement::factory()->active()->create(['company_id' => $this->company->id]);
-    Attendance::factory()->count(2)->create(['placement_id' => $placement->id]);
+
+    // Distinct dates: attendance is unique per placement per day, and the factory's
+    // default date is random over a 30-day window — two draws on one placement
+    // collide often enough to fail the suite roughly one run in thirty.
+    Attendance::factory()->count(2)->sequence(
+        ['date' => CarbonImmutable::now()->subDay()->toDateString()],
+        ['date' => CarbonImmutable::now()->subDays(2)->toDateString()],
+    )->create(['placement_id' => $placement->id]);
+
+    // These each get their own placement, so their random dates cannot collide.
     Attendance::factory()->count(3)->create();
 
     $this->actingAs($this->supervisor->user)

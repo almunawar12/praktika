@@ -171,7 +171,15 @@ test('deleting an attachment removes the file too', function (): void {
 });
 
 test('journals are scoped to what each role may see', function (): void {
-    Journal::factory()->count(2)->create(['placement_id' => $this->placement->id]);
+    // Distinct dates: journals are unique per placement per day, and the factory's
+    // default date is random over a 30-day window — two draws on one placement
+    // collide often enough to fail the suite roughly one run in thirty.
+    Journal::factory()->count(2)->sequence(
+        ['date' => CarbonImmutable::now()->subDay()->toDateString()],
+        ['date' => CarbonImmutable::now()->subDays(2)->toDateString()],
+    )->create(['placement_id' => $this->placement->id]);
+
+    // These each get their own placement, so their random dates cannot collide.
     Journal::factory()->count(3)->create();
 
     foreach ([$this->student->user, $this->teacher->user, $this->supervisor->user] as $viewer) {
