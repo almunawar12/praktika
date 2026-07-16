@@ -31,7 +31,13 @@ export function OverviewStatCard({ stat }: { stat: OverviewStat }) {
                     >
                         <NavIcon name={stat.icon} className="size-5" />
                     </span>
-                    <p className="truncate text-sm text-muted-foreground">
+                    {/*
+                     * Wraps rather than truncates: at six columns the label column is
+                     * ~105px, which clips "Total Siswa PKL" mid-word. The grid
+                     * stretches every tile to the tallest, so a second line costs
+                     * nothing.
+                     */}
+                    <p className="text-sm leading-tight text-muted-foreground">
                         {stat.label}
                     </p>
                 </div>

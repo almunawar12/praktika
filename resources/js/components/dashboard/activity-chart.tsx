@@ -72,7 +72,10 @@ export function ActivityChart({ data }: { data: ActivityChartPoint[] }) {
                         Belum ada aktivitas pada rentang ini.
                     </p>
                 ) : (
-                    <ChartContainer config={chartConfig} className="h-72 w-full">
+                    <ChartContainer
+                        config={chartConfig}
+                        className="h-72 w-full"
+                    >
                         <LineChart data={visible} accessibilityLayer>
                             <CartesianGrid vertical={false} />
                             <XAxis
