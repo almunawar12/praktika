@@ -32,6 +32,10 @@ Dokumen ini adalah **acuan tunggal** untuk implementasi. Jika ada konflik antara
 | ADR-17 | **Pembimbing Industri di-scope per perusahaan**, bukan per `placements.supervisor_id` | Penempatan bisa dibuat sebelum pembimbing ditunjuk. Scope lewat field itu akan menyembunyikan siswa dari pembimbing yang justru menampungnya. |
 | ADR-18 | **Jurnal ditolak → terbuka untuk revisi; menyimpan revisi mereset kedua tahap** (mengoreksi § 9) | ADD mengunci edit saat `industry_status ≠ pending`, sehingga jurnal ditolak jadi buntu permanen — `UNIQUE(placement_id, date)` melarang jurnal kedua di tanggal sama, jadi harinya hangus. Reset kedua tahap karena approval industri diberikan untuk isi lama; membiarkannya berarti industri "menyetujui" teks yang tak pernah dilihatnya. Terkunci hanya saat ada approval yang berlaku: `industry=approved`. |
 | ADR-19 | **Urutan Industri → Guru dijaga CHECK constraint**, bukan hanya policy | `journals_teacher_requires_industry_check` menolak keputusan guru tanpa approval industri, dan `journals_{industry,teacher}_reviewer_check` menolak keputusan tanpa nama reviewer. Efek samping: state "guru sudah memutuskan tapi industri belum" mustahil, sehingga service tidak perlu membersihkan keputusan basi. |
+| ADR-20 | **Lokasi monitoring direkam, tidak ditegakkan** (mengoreksi § 1.1 vs PRD) | ADD punya kolom lat/long; PRD Modul Monitoring Guru tidak menyebutnya sama sekali. Geofence di sini akan menghalangi guru yang lupa mencatat di lokasi untuk menyusulnya dari sekolah. Opsional, dengan CHECK menolak setengah pasang koordinat. |
+| ADR-21 | **Kunjungan boleh dicatat untuk PKL `completed`** (mengoreksi § 8) | ADD menulis "cek placement aktif". Ditegakkan keras, kunjungan yang belum tercatat saat PKL berakhir hilang selamanya — padahal laporan akhir justru saat itu dibutuhkan. `draft`/`cancelled` tetap ditolak: tidak ada PKL untuk dikunjungi. |
+| ADR-22 | **`monitorings.teacher_id` didenormalisasi dari placement** | Placement bisa dialihkan ke guru lain; laporan kunjungan harus tetap menyebut siapa yang benar-benar berkunjung. Hanya penulisnya yang boleh mengubah/menghapus — laporan kunjungan adalah kesaksian langsung. |
+| ADR-23 | **Pembimbing Industri tidak punya akses monitoring sama sekali** | Laporan kunjungan adalah penilaian internal sekolah atas cara perusahaan menampung siswa — bukan untuk dibaca perusahaannya. `PermissionCatalog` memang tidak memberinya permission apa pun di modul ini; dikunci oleh tes. |
 
 ### Deviasi dari dokumen sumber — wajib diketahui
 
@@ -1129,7 +1133,7 @@ Semua widget agregat lewat `DashboardRepository` dengan query teragregasi (`sele
 | **3 — Penempatan** | placements + transisi status + kuota + partial unique index | Test kuota penuh & double-active ditolak |
 | **4 — Absensi** ✅ | attendances, check-in/out, foto, geolokasi, verifikasi, `MarkAbsentStudentsJob` | Test double check-in, luar periode, geofence |
 | **5 — Jurnal** ✅ | journals 2-stage, attachments, kunci setelah review | Test urutan review dipaksa (Guru ditolak sebelum Industri) |
-| **6 — Monitoring** | monitorings + attachments | |
+| **6 — Monitoring** ✅ | monitorings + attachments | |
 | **7 — Penilaian** | assessments, assessment_scores, final_scores, `ScoreCalculatorService`, publikasi | Unit test rumus + snapshot bobot; test siswa tak lihat nilai belum publish |
 | **8 — Dashboard** | widget seluruh role + cache | Test payload per role; assert jumlah query |
 | **9 — Laporan** | ReportService, export async, riwayat | Test download hanya oleh pemilik |
