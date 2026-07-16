@@ -74,11 +74,15 @@ test('unbuilt modules are disabled placeholders rather than dead links', functio
 
     $dashboard = $items->firstWhere('label', 'Dashboard');
     $students = $items->firstWhere('label', 'Siswa');
+    // Still unbuilt as of the Master Data module.
+    $academicYears = $items->firstWhere('label', 'Tahun Ajaran');
 
     expect($dashboard['enabled'])->toBeTrue()
         ->and($dashboard['href'])->toBe(route('dashboard'))
-        ->and($students['enabled'])->toBeFalse()
-        ->and($students['href'])->toBeNull();
+        ->and($students['enabled'])->toBeTrue()
+        ->and($students['href'])->toBe(route('master.students.index'))
+        ->and($academicYears['enabled'])->toBeFalse()
+        ->and($academicYears['href'])->toBeNull();
 });
 
 test('every enabled sidebar link points at a route that exists', function (): void {

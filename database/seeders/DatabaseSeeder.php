@@ -20,5 +20,10 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             UserSeeder::class,
         ]);
+
+        // Demo master data invents people and companies — never in production.
+        if (! app()->isProduction()) {
+            $this->call(MasterDataSeeder::class);
+        }
     }
 }

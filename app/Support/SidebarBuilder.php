@@ -32,11 +32,11 @@ final class SidebarBuilder
 
             $this->group('Master Data', [
                 $this->item('Tahun Ajaran', 'CalendarRange', 'academic-years.viewAny'),
-                $this->item('Jurusan', 'Network', 'departments.viewAny'),
-                $this->item('Kelas', 'School', 'school-classes.viewAny'),
-                $this->item('Siswa', 'GraduationCap', 'students.viewAny'),
-                $this->item('Guru', 'Users', 'teachers.viewAny'),
-                $this->item('Perusahaan', 'Building2', 'companies.viewAny'),
+                $this->item('Jurusan', 'Network', 'departments.viewAny', route: 'master.departments.index'),
+                $this->item('Kelas', 'School', 'school-classes.viewAny', route: 'master.classes.index'),
+                $this->item('Siswa', 'GraduationCap', 'students.viewAny', route: 'master.students.index'),
+                $this->item('Guru', 'Users', 'teachers.viewAny', route: 'master.teachers.index'),
+                $this->item('Perusahaan', 'Building2', 'companies.viewAny', route: 'master.companies.index'),
                 $this->item('Pembimbing Industri', 'UserCog', 'company-supervisors.viewAny'),
             ]),
 
