@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\DataTransferObjects\TableRequest;
+use App\Exceptions\ResourceInUseException;
 use App\Models\Company;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -51,10 +52,19 @@ class CompanyService
         return $company;
     }
 
+    /**
+     * @throws ResourceInUseException
+     */
     public function delete(Company $company): void
     {
-        // Once the Placement module lands, a company with placements must be blocked
-        // here the way DepartmentService blocks a department with classes.
+        // placements.company_id is RESTRICT, so without this the delete surfaces as a
+        // raw SQL error. Retiring a DUDI is what `is_active` is for.
+        if ($company->placements()->exists()) {
+            throw new ResourceInUseException(
+                'Perusahaan tidak dapat dihapus karena sudah memiliki riwayat penempatan PKL. Nonaktifkan perusahaan jika tidak lagi menerima siswa.'
+            );
+        }
+
         $company->delete();
     }
 }

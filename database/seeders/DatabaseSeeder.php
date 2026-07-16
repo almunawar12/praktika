@@ -21,9 +21,12 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
         ]);
 
-        // Demo master data invents people and companies — never in production.
+        // Demo data invents people, companies and placements — never in production.
         if (! app()->isProduction()) {
-            $this->call(MasterDataSeeder::class);
+            $this->call([
+                MasterDataSeeder::class,
+                PlacementSeeder::class,
+            ]);
         }
     }
 }

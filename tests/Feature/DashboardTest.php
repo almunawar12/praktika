@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\RoleName;
+use App\Models\Placement;
+use App\Models\Student;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia;
 
@@ -42,11 +44,35 @@ test('super admin sees real user counts rather than placeholders', function (): 
 });
 
 test('widgets without a data source are marked pending instead of showing a fake zero', function (): void {
+    // Attendance has no module yet, so this tile must not claim a number.
     $this->actingAs(userWithRole(RoleName::Siswa))
         ->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('stats.0.pending', true)
-            ->where('stats.0.value', null)
+            ->where('stats.1.label', 'Status Absensi Hari Ini')
+            ->where('stats.1.pending', true)
+            ->where('stats.1.value', null)
+        );
+});
+
+test('placement tiles report real counts now that the module exists', function (): void {
+    $student = Student::factory()->create();
+    Placement::factory()->active()->create(['student_id' => $student->id]);
+    Placement::factory()->active()->count(2)->create();
+
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stats.0.label', 'PKL Aktif')
+            ->where('stats.0.value', 3)
+            ->where('stats.0.pending', false)
+        );
+
+    // The same tile is scoped: a student counts only their own.
+    $this->actingAs($student->user)
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stats.0.label', 'PKL Aktif')
+            ->where('stats.0.value', 1)
         );
 });
 

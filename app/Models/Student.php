@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PlacementStatus;
 use Carbon\CarbonImmutable;
 use Database\Factories\StudentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -28,6 +32,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property CarbonImmutable|null $deleted_at
  * @property-read User $user
  * @property-read SchoolClass $schoolClass
+ * @property-read Collection<int, Placement> $placements
+ * @property-read Placement|null $activePlacement
  */
 #[Fillable(['user_id', 'class_id', 'nis', 'nisn', 'name', 'phone'])]
 class Student extends Model
@@ -62,6 +68,27 @@ class Student extends Model
     public function schoolClass(): BelongsTo
     {
         return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
+    /**
+     * @return HasMany<Placement, $this>
+     */
+    public function placements(): HasMany
+    {
+        return $this->hasMany(Placement::class);
+    }
+
+    /**
+     * The one placement a student may have in flight.
+     *
+     * `hasOne` rather than `hasMany` because the partial unique index
+     * `placements_one_active_per_student` makes more than one impossible.
+     *
+     * @return HasOne<Placement, $this>
+     */
+    public function activePlacement(): HasOne
+    {
+        return $this->hasOne(Placement::class)->where('status', PlacementStatus::Active);
     }
 
     /**

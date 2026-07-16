@@ -7,6 +7,7 @@ namespace App\Services;
 use App\DataTransferObjects\StudentData;
 use App\DataTransferObjects\TableRequest;
 use App\Enums\RoleName;
+use App\Exceptions\ResourceInUseException;
 use App\Models\Student;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -86,8 +87,19 @@ class StudentService
         });
     }
 
+    /**
+     * @throws ResourceInUseException
+     */
     public function delete(Student $student): void
     {
+        // placements.student_id is RESTRICT. A student who has been placed is part of
+        // the PKL record and must not vanish from under it.
+        if ($student->placements()->exists()) {
+            throw new ResourceInUseException(
+                'Siswa tidak dapat dihapus karena sudah memiliki riwayat penempatan PKL.'
+            );
+        }
+
         DB::transaction(function () use ($student): void {
             $this->accounts->deactivate($student->user);
 

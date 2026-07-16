@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\PlacementStatus;
 use App\Enums\RoleName;
 use App\Models\Activity;
+use App\Models\Company;
+use App\Models\Placement;
+use App\Models\Student;
 use App\Models\User;
 
 /**
@@ -29,7 +33,7 @@ class DashboardService
         return [
             'role' => $role?->value,
             'roleLabel' => $role?->label(),
-            'stats' => $this->statsFor($role),
+            'stats' => $this->statsFor($user, $role),
             'recentActivities' => $this->recentActivities($user),
         ];
     }
@@ -37,41 +41,72 @@ class DashboardService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function statsFor(?RoleName $role): array
+    private function statsFor(User $user, ?RoleName $role): array
     {
+        // One grouped query for every placement number on the page, already scoped to
+        // what this user may see. Counting each status separately would issue a query
+        // per tile for a value the same scan already has.
+        $placements = $this->placementCountsByStatus($user);
+
         return match ($role) {
             RoleName::SuperAdmin => [
                 $this->stat('Total Pengguna', 'Users', User::count()),
-                $this->stat('Pengguna Aktif', 'UserCheck', User::where('is_active', true)->count()),
-                $this->pending('Total Siswa PKL', 'GraduationCap'),
-                $this->pending('Total Perusahaan', 'Building2'),
+                $this->stat('PKL Aktif', 'MapPin', $placements[PlacementStatus::Active->value]),
+                $this->stat('Total Siswa', 'GraduationCap', Student::count()),
+                $this->stat('Total Perusahaan', 'Building2', Company::count()),
             ],
             RoleName::AdminPkl => [
-                $this->pending('Total Siswa PKL', 'GraduationCap'),
-                $this->pending('PKL Aktif', 'MapPin'),
+                $this->stat('PKL Aktif', 'MapPin', $placements[PlacementStatus::Active->value]),
+                $this->stat('PKL Draft', 'FileText', $placements[PlacementStatus::Draft->value]),
+                $this->stat('PKL Selesai', 'Award', $placements[PlacementStatus::Completed->value]),
+                $this->stat('Total Siswa', 'GraduationCap', Student::count()),
                 $this->pending('Jurnal Pending', 'NotebookPen'),
                 $this->pending('Kehadiran Hari Ini', 'CalendarCheck'),
             ],
             RoleName::GuruPembimbing => [
-                $this->pending('Siswa Bimbingan', 'GraduationCap'),
+                $this->stat('Siswa Bimbingan Aktif', 'GraduationCap', $placements[PlacementStatus::Active->value]),
+                $this->stat('Bimbingan Selesai', 'Award', $placements[PlacementStatus::Completed->value]),
                 $this->pending('Jurnal Menunggu Review', 'NotebookPen'),
                 $this->pending('Absensi Perlu Verifikasi', 'CalendarCheck'),
-                $this->pending('Penilaian Belum Diisi', 'Star'),
             ],
             RoleName::PembimbingIndustri => [
+                // Scoped by company, which needs the company_supervisors module.
                 $this->pending('Siswa PKL', 'GraduationCap'),
                 $this->pending('Kehadiran Hari Ini', 'CalendarCheck'),
                 $this->pending('Jurnal Menunggu Review', 'NotebookPen'),
                 $this->pending('Penilaian Belum Diisi', 'Star'),
             ],
             RoleName::Siswa => [
+                $this->stat('PKL Aktif', 'MapPin', $placements[PlacementStatus::Active->value]),
                 $this->pending('Status Absensi Hari Ini', 'CalendarCheck'),
-                $this->pending('Progres PKL', 'MapPin'),
                 $this->pending('Kelengkapan Jurnal', 'NotebookPen'),
                 $this->pending('Nilai Akhir', 'Award'),
             ],
             null => [],
         };
+    }
+
+    /**
+     * Placement counts per status, scoped to what this user may see.
+     *
+     * @return array<string, int>
+     */
+    private function placementCountsByStatus(User $user): array
+    {
+        $counts = Placement::query()
+            ->visibleTo($user)
+            ->groupBy('status')
+            ->selectRaw('status, count(*) as total')
+            ->pluck('total', 'status')
+            ->all();
+
+        $result = [];
+
+        foreach (PlacementStatus::cases() as $status) {
+            $result[$status->value] = (int) ($counts[$status->value] ?? 0);
+        }
+
+        return $result;
     }
 
     /**

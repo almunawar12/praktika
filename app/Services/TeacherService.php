@@ -7,6 +7,7 @@ namespace App\Services;
 use App\DataTransferObjects\TableRequest;
 use App\DataTransferObjects\TeacherData;
 use App\Enums\RoleName;
+use App\Exceptions\ResourceInUseException;
 use App\Models\Teacher;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -80,8 +81,19 @@ class TeacherService
         });
     }
 
+    /**
+     * @throws ResourceInUseException
+     */
     public function delete(Teacher $teacher): void
     {
+        // placements.teacher_id is RESTRICT. Reassign the placements first, or the
+        // PKL record loses the supervisor it names.
+        if ($teacher->placements()->exists()) {
+            throw new ResourceInUseException(
+                'Guru tidak dapat dihapus karena masih tercatat sebagai pembimbing pada penempatan PKL.'
+            );
+        }
+
         DB::transaction(function () use ($teacher): void {
             // The account is deactivated, not deleted: it is the causer on audit-log
             // entries that must remain attributable.

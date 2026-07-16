@@ -41,7 +41,7 @@ final class SidebarBuilder
             ]),
 
             $this->group('PKL', [
-                $this->item('Penempatan', 'MapPin', 'placements.viewAny'),
+                $this->item('Penempatan', 'MapPin', 'placements.viewAny', route: 'pkl.placements.index'),
                 $this->item('Absensi', 'CalendarCheck', 'attendances.viewAny'),
                 $this->item('Jurnal', 'NotebookPen', 'journals.viewAny'),
                 $this->item('Monitoring', 'ClipboardCheck', 'monitorings.viewAny'),
