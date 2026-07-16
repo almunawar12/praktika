@@ -18,6 +18,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolePermissionSeeder::class,
+            // Not demo data: the assessment weights are the formula real scores
+            // depend on (ADR-03).
+            SettingSeeder::class,
             UserSeeder::class,
         ]);
 
@@ -29,6 +32,7 @@ class DatabaseSeeder extends Seeder
                 AttendanceSeeder::class,
                 JournalSeeder::class,
                 MonitoringSeeder::class,
+                AssessmentSeeder::class,
             ]);
         }
     }

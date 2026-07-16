@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssessmentType;
+use App\Http\Controllers\Assessment\AssessmentController;
+use App\Http\Controllers\Assessment\FinalScoreController;
 use App\Http\Controllers\Attendance\AttendanceController;
 use App\Http\Controllers\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Attendance\AttendanceVerificationController;
@@ -88,5 +91,40 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('can:monitorings.viewAny')->group(function (): void {
         Route::resource('monitorings', MonitoringController::class);
+    });
+
+    Route::middleware('can:assessments.viewAny')->group(function (): void {
+        Route::get('assessments', [AssessmentController::class, 'index'])
+            ->name('assessments.index');
+
+        // One form, two sides: which one is the route's business, and the policy
+        // decides whether this user owns that side.
+        Route::get('assessments/{placement}/{type}', [AssessmentController::class, 'edit'])
+            ->whereIn('type', AssessmentType::values())
+            ->name('assessments.edit');
+
+        Route::put('assessments/{placement}/{type}', [AssessmentController::class, 'store'])
+            ->whereIn('type', AssessmentType::values())
+            ->name('assessments.store');
+
+        Route::put('assessments/{assessment}/unlock', [AssessmentController::class, 'unlock'])
+            ->name('assessments.unlock');
+    });
+
+    Route::middleware('can:final-scores.view')->group(function (): void {
+        Route::get('final-scores', [FinalScoreController::class, 'index'])
+            ->name('final-scores.index');
+
+        Route::get('final-scores/{finalScore}', [FinalScoreController::class, 'show'])
+            ->name('final-scores.show');
+
+        Route::post('final-scores/{placement}/calculate', [FinalScoreController::class, 'calculate'])
+            ->name('final-scores.calculate');
+
+        Route::post('final-scores/{finalScore}/publish', [FinalScoreController::class, 'publish'])
+            ->name('final-scores.publish');
+
+        Route::delete('final-scores/{finalScore}/publish', [FinalScoreController::class, 'unpublish'])
+            ->name('final-scores.unpublish');
     });
 });

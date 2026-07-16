@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -38,6 +39,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read Collection<int, Attendance> $attendances
  * @property-read Collection<int, Journal> $journals
  * @property-read Collection<int, Monitoring> $monitorings
+ * @property-read Collection<int, Assessment> $assessments
+ * @property-read FinalScore|null $finalScore
  */
 #[Fillable(['student_id', 'company_id', 'teacher_id', 'status', 'start_date', 'end_date', 'cancel_reason'])]
 class Placement extends Model
@@ -116,6 +119,22 @@ class Placement extends Model
     public function monitorings(): HasMany
     {
         return $this->hasMany(Monitoring::class);
+    }
+
+    /**
+     * @return HasMany<Assessment, $this>
+     */
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(Assessment::class);
+    }
+
+    /**
+     * @return HasOne<FinalScore, $this>
+     */
+    public function finalScore(): HasOne
+    {
+        return $this->hasOne(FinalScore::class);
     }
 
     /**

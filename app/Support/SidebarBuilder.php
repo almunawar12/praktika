@@ -48,8 +48,8 @@ final class SidebarBuilder
                 $this->item('Riwayat Absensi', 'CalendarCheck', 'attendances.viewAny', route: 'attendances.index'),
                 $this->item('Jurnal', 'NotebookPen', 'journals.viewAny', route: 'journals.index'),
                 $this->item('Monitoring', 'ClipboardCheck', 'monitorings.viewAny', route: 'monitorings.index'),
-                $this->item('Penilaian', 'Star', 'assessments.viewAny'),
-                $this->item('Nilai Akhir', 'Award', 'final-scores.view'),
+                $this->item('Penilaian', 'Star', 'assessments.viewAny', route: 'assessments.index'),
+                $this->item('Nilai Akhir', 'Award', 'final-scores.view', route: 'final-scores.index'),
             ]),
 
             $this->group('Laporan', [

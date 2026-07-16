@@ -36,6 +36,10 @@ Dokumen ini adalah **acuan tunggal** untuk implementasi. Jika ada konflik antara
 | ADR-21 | **Kunjungan boleh dicatat untuk PKL `completed`** (mengoreksi § 8) | ADD menulis "cek placement aktif". Ditegakkan keras, kunjungan yang belum tercatat saat PKL berakhir hilang selamanya — padahal laporan akhir justru saat itu dibutuhkan. `draft`/`cancelled` tetap ditolak: tidak ada PKL untuk dikunjungi. |
 | ADR-22 | **`monitorings.teacher_id` didenormalisasi dari placement** | Placement bisa dialihkan ke guru lain; laporan kunjungan harus tetap menyebut siapa yang benar-benar berkunjung. Hanya penulisnya yang boleh mengubah/menghapus — laporan kunjungan adalah kesaksian langsung. |
 | ADR-23 | **Pembimbing Industri tidak punya akses monitoring sama sekali** | Laporan kunjungan adalah penilaian internal sekolah atas cara perusahaan menampung siswa — bukan untuk dibaca perusahaannya. `PermissionCatalog` memang tidak memberinya permission apa pun di modul ini; dikunci oleh tes. |
+| ADR-24 | **Penilaian punya tahap draft** (melengkapi § 1.1) | ADD menaruh `submitted_at` nullable tapi tidak menjelaskan artinya. `null` = draft, masih milik penilai; terisi = terkunci dan menjadi bukti yang mendasari nilai akhir. Tanpa draft, penilai yang mengisi 3 dari 5 kriteria harus mengulang atau minta admin. |
+| ADR-25 | **Nilai akhir dihitung otomatis, tombol Hitung Ulang untuk bobot berubah** (mengklarifikasi § 8) | ADD menyebut `AssessmentObserver` otomatis DAN endpoint `calculate` admin sekaligus, tanpa menjelaskan mana yang berlaku. Keduanya: observer menghitung begitu kedua sisi mengirim (tidak ada langkah admin yang bisa terlupa), tombol hanya untuk menghitung ulang dengan bobot terkini. Yang sudah dipublikasi tidak pernah dihitung ulang. |
+| ADR-26 | **`settings` dibangun di Fase 7, bukan Fase 10** | ADR-03 menaruh bobot penilaian di DB agar sekolah bisa mengubah 60/40 tanpa deploy — jadi tabelnya dibutuhkan begitu penilaian ada. `SettingSeeder` ikut jalan di produksi: bobot bukan data demo. UI pengelolaannya tetap Fase 10. |
+| ADR-27 | **`SettingService::weights()` jatuh ke default bila tidak berjumlah 1** | Divalidasi di request dan dijaga `final_scores_weights_check` di DB, tapi baris `settings` yang diedit tangan bisa melewati keduanya. Fallback mencegah satu baris rusak diam-diam mengacaukan setiap perhitungan. |
 
 ### Deviasi dari dokumen sumber — wajib diketahui
 
@@ -1134,7 +1138,7 @@ Semua widget agregat lewat `DashboardRepository` dengan query teragregasi (`sele
 | **4 — Absensi** ✅ | attendances, check-in/out, foto, geolokasi, verifikasi, `MarkAbsentStudentsJob` | Test double check-in, luar periode, geofence |
 | **5 — Jurnal** ✅ | journals 2-stage, attachments, kunci setelah review | Test urutan review dipaksa (Guru ditolak sebelum Industri) |
 | **6 — Monitoring** ✅ | monitorings + attachments | |
-| **7 — Penilaian** | assessments, assessment_scores, final_scores, `ScoreCalculatorService`, publikasi | Unit test rumus + snapshot bobot; test siswa tak lihat nilai belum publish |
+| **7 — Penilaian** ✅ | assessments, assessment_scores, final_scores, `ScoreCalculatorService`, publikasi | Unit test rumus + snapshot bobot; test siswa tak lihat nilai belum publish |
 | **8 — Dashboard** | widget seluruh role + cache | Test payload per role; assert jumlah query |
 | **9 — Laporan** | ReportService, export async, riwayat | Test download hanya oleh pemilik |
 | **10 — Sistem** | users, roles, settings, activity log, impersonate | |

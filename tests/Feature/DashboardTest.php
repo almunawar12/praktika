@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\RoleName;
+use App\Models\FinalScore;
 use App\Models\Placement;
 use App\Models\Student;
 use App\Models\User;
@@ -43,14 +44,23 @@ test('super admin sees real user counts rather than placeholders', function (): 
         );
 });
 
-test('widgets without a data source are marked pending instead of showing a fake zero', function (): void {
-    // Assessment has no module yet, so this tile must not claim a number.
-    $this->actingAs(userWithRole(RoleName::Siswa))
+test('the student score tile counts only scores released to them', function (): void {
+    $student = Student::factory()->create();
+
+    // One published score the student may see, one still withheld.
+    FinalScore::factory()->published()->create([
+        'placement_id' => Placement::factory()->completed()->create(['student_id' => $student->id]),
+    ]);
+    FinalScore::factory()->create([
+        'placement_id' => Placement::factory()->completed()->create(['student_id' => $student->id]),
+    ]);
+
+    $this->actingAs($student->user)
         ->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('stats.3.label', 'Nilai Akhir')
-            ->where('stats.3.pending', true)
-            ->where('stats.3.value', null)
+            ->where('stats.3.label', 'Nilai Dipublikasikan')
+            ->where('stats.3.pending', false)
+            ->where('stats.3.value', 1)
         );
 });
 
