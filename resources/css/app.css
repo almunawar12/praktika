@@ -70,11 +70,20 @@
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
+    /*
+     * Chart slots 1–4 and the attendance statuses are validated as sets against
+     * this surface: CVD separation, lightness band, chroma floor and contrast all
+     * pass. Re-run the check before changing any of them by eye.
+     */
+    --chart-1: #2a78d6;
+    --chart-2: #008300;
+    --chart-3: #e87ba4;
+    --chart-4: #eda100;
     --chart-5: oklch(0.269 0 0);
+    --status-hadir: #0ca30c;
+    --status-izin: #2a78d6;
+    --status-sakit: #eda100;
+    --status-alpha: #d03b3b;
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
@@ -105,11 +114,16 @@
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
+    /* The same hues re-stepped for the dark surface — not an automatic flip. */
+    --chart-1: #3987e5;
+    --chart-2: #008300;
+    --chart-3: #d55181;
+    --chart-4: #c98500;
     --chart-5: oklch(0.269 0 0);
+    --status-hadir: #0ca30c;
+    --status-izin: #3987e5;
+    --status-sakit: #c98500;
+    --status-alpha: #d03b3b;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);
