@@ -61,7 +61,14 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     const groups: NavGroup[] = page.props.sidebar;
 
     return (
-        <nav className="flex flex-col gap-4 px-3 py-4" onClick={onNavigate}>
+        // `flex-1 overflow-y-auto` is what makes the nav reachable: both callers pin
+        // the panel to the viewport height, and the menu is taller than a short
+        // laptop screen — without an internal scroller the bottom groups can't be
+        // reached at all, since page scroll doesn't move a fixed panel.
+        <nav
+            className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4"
+            onClick={onNavigate}
+        >
             {groups.map((group, index) => (
                 <div
                     key={group.title ?? `group-${index}`}

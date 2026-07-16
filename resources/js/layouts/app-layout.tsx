@@ -23,7 +23,7 @@ type AppLayoutProps = PropsWithChildren<{
 
 function Brand() {
     return (
-        <div className="flex items-center gap-2 px-4 py-4 font-semibold">
+        <div className="flex shrink-0 items-center gap-2 px-4 py-4 font-semibold">
             <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                 <GraduationCap className="size-5" aria-hidden="true" />
             </span>
@@ -76,7 +76,7 @@ export default function AppLayout({
             ) : null}
 
             {/* Mobile-first: the sidebar is a sheet below `lg` and a fixed rail above it. */}
-            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r bg-sidebar lg:block">
+            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-sidebar lg:flex">
                 <Brand />
                 <SidebarNav />
             </aside>
