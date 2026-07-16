@@ -44,13 +44,13 @@ test('super admin sees real user counts rather than placeholders', function (): 
 });
 
 test('widgets without a data source are marked pending instead of showing a fake zero', function (): void {
-    // Journals have no module yet, so this tile must not claim a number.
+    // Assessment has no module yet, so this tile must not claim a number.
     $this->actingAs(userWithRole(RoleName::Siswa))
         ->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('stats.2.label', 'Kelengkapan Jurnal')
-            ->where('stats.2.pending', true)
-            ->where('stats.2.value', null)
+            ->where('stats.3.label', 'Nilai Akhir')
+            ->where('stats.3.pending', true)
+            ->where('stats.3.value', null)
         );
 });
 

@@ -6,6 +6,9 @@ use App\Http\Controllers\Attendance\AttendanceController;
 use App\Http\Controllers\Attendance\AttendancePhotoController;
 use App\Http\Controllers\Attendance\AttendanceVerificationController;
 use App\Http\Controllers\Attendance\CheckInController;
+use App\Http\Controllers\Journal\AttachmentController;
+use App\Http\Controllers\Journal\JournalController;
+use App\Http\Controllers\Journal\JournalReviewController;
 use App\Http\Controllers\Pkl\PlacementController;
 use App\Http\Controllers\Pkl\PlacementStatusController;
 use Illuminate\Support\Facades\Route;
@@ -61,5 +64,24 @@ Route::middleware('auth')->group(function (): void {
 
         Route::put('attendances/{attendance}/verify', AttendanceVerificationController::class)
             ->name('attendances.verify');
+    });
+
+    Route::middleware('can:journals.viewAny')->group(function (): void {
+        Route::resource('journals', JournalController::class);
+
+        // Separate endpoints per stage: each carries its own permission and produces
+        // its own audit entry (PRD § 5 order).
+        Route::put('journals/{journal}/review/industry', [JournalReviewController::class, 'industry'])
+            ->name('journals.review.industry');
+
+        Route::put('journals/{journal}/review/teacher', [JournalReviewController::class, 'teacher'])
+            ->name('journals.review.teacher');
+
+        // Authorized through the parent record, not by path.
+        Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])
+            ->name('attachments.show');
+
+        Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])
+            ->name('attachments.destroy');
     });
 });

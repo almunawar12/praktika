@@ -6,11 +6,13 @@ namespace App\Services;
 
 use App\Enums\AttendanceStatus;
 use App\Enums\PlacementStatus;
+use App\Enums\ReviewStatus;
 use App\Enums\RoleName;
 use App\Enums\VerificationStatus;
 use App\Models\Activity;
 use App\Models\Attendance;
 use App\Models\Company;
+use App\Models\Journal;
 use App\Models\Placement;
 use App\Models\Student;
 use App\Models\User;
@@ -63,27 +65,27 @@ class DashboardService
                 $this->stat('PKL Aktif', 'MapPin', $placements[PlacementStatus::Active->value]),
                 $this->stat('Hadir Hari Ini', 'CalendarCheck', $this->presentToday($user)),
                 $this->stat('Absensi Perlu Verifikasi', 'Fingerprint', $this->awaitingVerification($user)),
-                $this->stat('PKL Draft', 'FileText', $placements[PlacementStatus::Draft->value]),
+                $this->stat('Jurnal Pending', 'NotebookPen', $this->journalsPending($user)),
                 $this->stat('PKL Selesai', 'Award', $placements[PlacementStatus::Completed->value]),
-                $this->pending('Jurnal Pending', 'NotebookPen'),
             ],
             RoleName::GuruPembimbing => [
                 $this->stat('Siswa Bimbingan Aktif', 'GraduationCap', $placements[PlacementStatus::Active->value]),
                 $this->stat('Hadir Hari Ini', 'CalendarCheck', $this->presentToday($user)),
                 $this->stat('Absensi Perlu Verifikasi', 'Fingerprint', $this->awaitingVerification($user)),
-                $this->pending('Jurnal Menunggu Review', 'NotebookPen'),
+                // Only journals industry has already signed off are actually the
+                // teacher's to review (PRD § 5).
+                $this->stat('Jurnal Menunggu Review', 'NotebookPen', $this->journalsForTeacher($user)),
             ],
             RoleName::PembimbingIndustri => [
-                // Scoped by company, which needs the company_supervisors module.
-                $this->pending('Siswa PKL', 'GraduationCap'),
-                $this->pending('Kehadiran Hari Ini', 'CalendarCheck'),
-                $this->pending('Jurnal Menunggu Review', 'NotebookPen'),
-                $this->pending('Penilaian Belum Diisi', 'Star'),
+                $this->stat('Siswa PKL Aktif', 'GraduationCap', $placements[PlacementStatus::Active->value]),
+                $this->stat('Hadir Hari Ini', 'CalendarCheck', $this->presentToday($user)),
+                $this->stat('Absensi Perlu Verifikasi', 'Fingerprint', $this->awaitingVerification($user)),
+                $this->stat('Jurnal Menunggu Review', 'NotebookPen', $this->journalsForIndustry($user)),
             ],
             RoleName::Siswa => [
                 $this->stat('PKL Aktif', 'MapPin', $placements[PlacementStatus::Active->value]),
                 $this->stat('Total Hadir', 'CalendarCheck', $this->presentCount($user)),
-                $this->pending('Kelengkapan Jurnal', 'NotebookPen'),
+                $this->stat('Jurnal Ditolak', 'NotebookPen', $this->journalsRejected($user)),
                 $this->pending('Nilai Akhir', 'Award'),
             ],
             null => [],
@@ -110,6 +112,38 @@ class DashboardService
         return Attendance::query()
             ->visibleTo($user)
             ->awaitingVerification()
+            ->count();
+    }
+
+    /**
+     * Journals not yet through both stages.
+     */
+    private function journalsPending(User $user): int
+    {
+        return Journal::query()
+            ->visibleTo($user)
+            ->where('status', ReviewStatus::Pending)
+            ->count();
+    }
+
+    private function journalsForIndustry(User $user): int
+    {
+        return Journal::query()->visibleTo($user)->pendingForIndustry()->count();
+    }
+
+    private function journalsForTeacher(User $user): int
+    {
+        return Journal::query()->visibleTo($user)->pendingForTeacher()->count();
+    }
+
+    /**
+     * The number that actually needs the student's attention.
+     */
+    private function journalsRejected(User $user): int
+    {
+        return Journal::query()
+            ->visibleTo($user)
+            ->where('status', ReviewStatus::Rejected)
             ->count();
     }
 

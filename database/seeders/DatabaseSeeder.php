@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
                 MasterDataSeeder::class,
                 PlacementSeeder::class,
                 AttendanceSeeder::class,
+                JournalSeeder::class,
             ]);
         }
     }
