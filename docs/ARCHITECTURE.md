@@ -24,6 +24,10 @@ Dokumen ini adalah **acuan tunggal** untuk implementasi. Jika ada konflik antara
 | ADR-09 | **Inertia-first, tanpa REST API publik di v1** | Semua konsumsi lewat Inertia. Kontrak JSON di CLAUDE.md § API Standards diterapkan pada endpoint XHR/aksi non-Inertia saja. Sanctum disiapkan untuk roadmap Mobile App. |
 | ADR-10 | **Tidak ada `Gate::before` bypass untuk Super Admin** (mengoreksi § 4.1) | `RolePermissionSeeder` memberi Super Admin seluruh permission secara eksplisit, jadi bypass redundan. Lebih buruk: bypass mengembalikan `true` **sebelum** `UserPolicy` jalan, sehingga penjaga "tidak boleh hapus akun sendiri" dan "super admin terakhir tidak boleh dihapus" mati justru untuk role yang paling perlu dijaga. Diuji di `tests/Feature/UserPolicyTest.php`. |
 | ADR-11 | **Tidak ada registrasi publik** | PRD § 3: akun dibuat Admin. Route `register` bawaan Breeze dihapus — kalau dibiarkan, siapa pun bisa membuat akun login. |
+| ADR-12 | **Geofence ditegakkan di Fase 4**, koordinat perusahaan opsional | Keputusan disetujui, menarik maju PRD § 7 (Future Roadmap). Perusahaan tanpa koordinat = tanpa geofence: check-in diterima, jarak dicatat `null`. Memblokir akan menghentikan siswa bekerja hanya karena admin lupa mengisi field. |
+| ADR-13 | **Foto wajib di check-in dan check-out** | Keputusan disetujui. Konsekuensi diketahui: siswa tidak bisa check-out bila kamera bermasalah. |
+| ADR-14 | **Absensi tidak memakai SoftDeletes** | Absensi adalah basis bukti penilaian guru. Koreksi lewat alur verifikasi (`rejected`), bukan penghapusan. Baris `rejected` tetap tersimpan tapi tidak dihitung sebagai kehadiran. |
+| ADR-15 | **`present` dan `absent` tidak dapat diklaim siswa** | `present` hanya dari check-in nyata (berfoto + berkoordinat, dijaga CHECK constraint); `absent` hanya dari `MarkAbsentStudentsJob`. Siswa hanya boleh mengajukan `izin`/`sakit`, dan itu pun `pending` sampai pembimbing memutuskan. Tanpa ini, siswa bisa menghindari alpha kapan saja. |
 
 ### Deviasi dari dokumen sumber — wajib diketahui
 
@@ -1119,7 +1123,7 @@ Semua widget agregat lewat `DashboardRepository` dengan query teragregasi (`sele
 | **1 — Auth & RBAC** | users, roles, permissions, seeder, login/logout/reset, `EnsureUserIsActive`, share permission ke Inertia | Feature test tiap role login & lihat sidebar benar |
 | **2 — Master Data** | academic_years, departments, school_classes, students, teachers, companies, company_supervisors + CRUD + policy + UI | CRUD test tiap resource, akses lintas-role ditolak |
 | **3 — Penempatan** | placements + transisi status + kuota + partial unique index | Test kuota penuh & double-active ditolak |
-| **4 — Absensi** | attendances, check-in/out, foto, geolokasi, verifikasi, `MarkAbsentStudentsJob` | Test double check-in, luar periode, geofence |
+| **4 — Absensi** ✅ | attendances, check-in/out, foto, geolokasi, verifikasi, `MarkAbsentStudentsJob` | Test double check-in, luar periode, geofence |
 | **5 — Jurnal** | journals 2-stage, attachments, kunci setelah review | Test urutan review dipaksa (Guru ditolak sebelum Industri) |
 | **6 — Monitoring** | monitorings + attachments | |
 | **7 — Penilaian** | assessments, assessment_scores, final_scores, `ScoreCalculatorService`, publikasi | Unit test rumus + snapshot bobot; test siswa tak lihat nilai belum publish |
