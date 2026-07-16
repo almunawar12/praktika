@@ -28,6 +28,10 @@ Dokumen ini adalah **acuan tunggal** untuk implementasi. Jika ada konflik antara
 | ADR-13 | **Foto wajib di check-in dan check-out** | Keputusan disetujui. Konsekuensi diketahui: siswa tidak bisa check-out bila kamera bermasalah. |
 | ADR-14 | **Absensi tidak memakai SoftDeletes** | Absensi adalah basis bukti penilaian guru. Koreksi lewat alur verifikasi (`rejected`), bukan penghapusan. Baris `rejected` tetap tersimpan tapi tidak dihitung sebagai kehadiran. |
 | ADR-15 | **`present` dan `absent` tidak dapat diklaim siswa** | `present` hanya dari check-in nyata (berfoto + berkoordinat, dijaga CHECK constraint); `absent` hanya dari `MarkAbsentStudentsJob`. Siswa hanya boleh mengajukan `izin`/`sakit`, dan itu pun `pending` sampai pembimbing memutuskan. Tanpa ini, siswa bisa menghindari alpha kapan saja. |
+| ADR-16 | **Scope baris pada Master Data**, mengoreksi implementasi awal | ADD § 9 sudah menetapkannya, tapi modul Master Data dibangun tanpa scope: Pembimbing Industri bisa membuka direktori seluruh siswa (nama, NIS, NISN, email, no HP anak di bawah umur), dan siswa bisa melihat semua DUDI beserta kuota + kontak PIC. `Student::scopeVisibleTo` + `Company::scopeVisibleTo` menutupnya di service dan policy. |
+| ADR-17 | **Pembimbing Industri di-scope per perusahaan**, bukan per `placements.supervisor_id` | Penempatan bisa dibuat sebelum pembimbing ditunjuk. Scope lewat field itu akan menyembunyikan siswa dari pembimbing yang justru menampungnya. |
+| ADR-18 | **Jurnal ditolak → terbuka untuk revisi; menyimpan revisi mereset kedua tahap** (mengoreksi § 9) | ADD mengunci edit saat `industry_status ≠ pending`, sehingga jurnal ditolak jadi buntu permanen — `UNIQUE(placement_id, date)` melarang jurnal kedua di tanggal sama, jadi harinya hangus. Reset kedua tahap karena approval industri diberikan untuk isi lama; membiarkannya berarti industri "menyetujui" teks yang tak pernah dilihatnya. Terkunci hanya saat ada approval yang berlaku: `industry=approved`. |
+| ADR-19 | **Urutan Industri → Guru dijaga CHECK constraint**, bukan hanya policy | `journals_teacher_requires_industry_check` menolak keputusan guru tanpa approval industri, dan `journals_{industry,teacher}_reviewer_check` menolak keputusan tanpa nama reviewer. Efek samping: state "guru sudah memutuskan tapi industri belum" mustahil, sehingga service tidak perlu membersihkan keputusan basi. |
 
 ### Deviasi dari dokumen sumber — wajib diketahui
 
@@ -1124,7 +1128,7 @@ Semua widget agregat lewat `DashboardRepository` dengan query teragregasi (`sele
 | **2 — Master Data** | academic_years, departments, school_classes, students, teachers, companies, company_supervisors + CRUD + policy + UI | CRUD test tiap resource, akses lintas-role ditolak |
 | **3 — Penempatan** | placements + transisi status + kuota + partial unique index | Test kuota penuh & double-active ditolak |
 | **4 — Absensi** ✅ | attendances, check-in/out, foto, geolokasi, verifikasi, `MarkAbsentStudentsJob` | Test double check-in, luar periode, geofence |
-| **5 — Jurnal** | journals 2-stage, attachments, kunci setelah review | Test urutan review dipaksa (Guru ditolak sebelum Industri) |
+| **5 — Jurnal** ✅ | journals 2-stage, attachments, kunci setelah review | Test urutan review dipaksa (Guru ditolak sebelum Industri) |
 | **6 — Monitoring** | monitorings + attachments | |
 | **7 — Penilaian** | assessments, assessment_scores, final_scores, `ScoreCalculatorService`, publikasi | Unit test rumus + snapshot bobot; test siswa tak lihat nilai belum publish |
 | **8 — Dashboard** | widget seluruh role + cache | Test payload per role; assert jumlah query |
