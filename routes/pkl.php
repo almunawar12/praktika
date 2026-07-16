@@ -9,6 +9,7 @@ use App\Http\Controllers\Attendance\CheckInController;
 use App\Http\Controllers\Journal\AttachmentController;
 use App\Http\Controllers\Journal\JournalController;
 use App\Http\Controllers\Journal\JournalReviewController;
+use App\Http\Controllers\Monitoring\MonitoringController;
 use App\Http\Controllers\Pkl\PlacementController;
 use App\Http\Controllers\Pkl\PlacementStatusController;
 use Illuminate\Support\Facades\Route;
@@ -83,5 +84,9 @@ Route::middleware('auth')->group(function (): void {
 
         Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])
             ->name('attachments.destroy');
+    });
+
+    Route::middleware('can:monitorings.viewAny')->group(function (): void {
+        Route::resource('monitorings', MonitoringController::class);
     });
 });

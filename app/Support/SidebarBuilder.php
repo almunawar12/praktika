@@ -47,7 +47,7 @@ final class SidebarBuilder
                 $this->item('Penempatan', 'MapPin', 'placements.viewAny', route: 'pkl.placements.index'),
                 $this->item('Riwayat Absensi', 'CalendarCheck', 'attendances.viewAny', route: 'attendances.index'),
                 $this->item('Jurnal', 'NotebookPen', 'journals.viewAny', route: 'journals.index'),
-                $this->item('Monitoring', 'ClipboardCheck', 'monitorings.viewAny'),
+                $this->item('Monitoring', 'ClipboardCheck', 'monitorings.viewAny', route: 'monitorings.index'),
                 $this->item('Penilaian', 'Star', 'assessments.viewAny'),
                 $this->item('Nilai Akhir', 'Award', 'final-scores.view'),
             ]),

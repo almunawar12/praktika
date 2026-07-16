@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
                 PlacementSeeder::class,
                 AttendanceSeeder::class,
                 JournalSeeder::class,
+                MonitoringSeeder::class,
             ]);
         }
     }

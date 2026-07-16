@@ -36,6 +36,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read Company $company
  * @property-read Teacher $teacher
  * @property-read Collection<int, Attendance> $attendances
+ * @property-read Collection<int, Journal> $journals
+ * @property-read Collection<int, Monitoring> $monitorings
  */
 #[Fillable(['student_id', 'company_id', 'teacher_id', 'status', 'start_date', 'end_date', 'cancel_reason'])]
 class Placement extends Model
@@ -98,6 +100,22 @@ class Placement extends Model
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    /**
+     * @return HasMany<Journal, $this>
+     */
+    public function journals(): HasMany
+    {
+        return $this->hasMany(Journal::class);
+    }
+
+    /**
+     * @return HasMany<Monitoring, $this>
+     */
+    public function monitorings(): HasMany
+    {
+        return $this->hasMany(Monitoring::class);
     }
 
     /**

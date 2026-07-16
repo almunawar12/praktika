@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Attachment;
 use App\Models\Journal;
+use App\Models\Monitoring;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -16,12 +17,16 @@ use RuntimeException;
  *
  * The parameter names the concrete attachables rather than an interface: Eloquent's
  * relation generics do not survive an interface boundary, and a plain union is both
- * type-safe and honest. It grows to `Journal|Monitoring` when that module lands.
+ * type-safe and honest.
  */
 class AttachmentService
 {
-    public function store(Journal $attachable, UploadedFile $file, User $uploader, ?string $caption = null): Attachment
-    {
+    public function store(
+        Journal|Monitoring $attachable,
+        UploadedFile $file,
+        User $uploader,
+        ?string $caption = null,
+    ): Attachment {
         $disk = $this->disk();
 
         $path = $file->store($this->folderFor($attachable), $disk);
@@ -52,7 +57,7 @@ class AttachmentService
         $attachment->delete();
     }
 
-    private function folderFor(Journal $attachable): string
+    private function folderFor(Journal|Monitoring $attachable): string
     {
         return sprintf(
             'attachments/%s/%s',

@@ -28,6 +28,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property CarbonImmutable|null $deleted_at
  * @property-read User $user
  * @property-read Collection<int, Placement> $placements
+ * @property-read Collection<int, Monitoring> $monitorings
  */
 #[Fillable(['user_id', 'nip', 'name', 'phone'])]
 class Teacher extends Model
@@ -62,6 +63,14 @@ class Teacher extends Model
     public function placements(): HasMany
     {
         return $this->hasMany(Placement::class);
+    }
+
+    /**
+     * @return HasMany<Monitoring, $this>
+     */
+    public function monitorings(): HasMany
+    {
+        return $this->hasMany(Monitoring::class);
     }
 
     /**

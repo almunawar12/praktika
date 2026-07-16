@@ -13,6 +13,7 @@ use App\Models\Activity;
 use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\Journal;
+use App\Models\Monitoring;
 use App\Models\Placement;
 use App\Models\Student;
 use App\Models\User;
@@ -70,11 +71,13 @@ class DashboardService
             ],
             RoleName::GuruPembimbing => [
                 $this->stat('Siswa Bimbingan Aktif', 'GraduationCap', $placements[PlacementStatus::Active->value]),
-                $this->stat('Hadir Hari Ini', 'CalendarCheck', $this->presentToday($user)),
                 $this->stat('Absensi Perlu Verifikasi', 'Fingerprint', $this->awaitingVerification($user)),
                 // Only journals industry has already signed off are actually the
                 // teacher's to review (PRD § 5).
                 $this->stat('Jurnal Menunggu Review', 'NotebookPen', $this->journalsForTeacher($user)),
+                $this->stat('Kunjungan Bulan Ini', 'ClipboardCheck', $this->visitsThisMonth($user)),
+                // The number that actually prompts action.
+                $this->stat('Perlu Dikunjungi', 'MapPin', $this->placementsNeedingVisit($user)),
             ],
             RoleName::PembimbingIndustri => [
                 $this->stat('Siswa PKL Aktif', 'GraduationCap', $placements[PlacementStatus::Active->value]),
@@ -113,6 +116,26 @@ class DashboardService
             ->visibleTo($user)
             ->awaitingVerification()
             ->count();
+    }
+
+    private function visitsThisMonth(User $user): int
+    {
+        return Monitoring::query()
+            ->visibleTo($user)
+            ->where('visit_date', '>=', CarbonImmutable::now()->startOfMonth())
+            ->count();
+    }
+
+    /**
+     * Supervised placements with no visit in the last 30 days.
+     */
+    private function placementsNeedingVisit(User $user): int
+    {
+        if ($user->teacher === null) {
+            return 0;
+        }
+
+        return app(MonitoringService::class)->needingVisit($user->teacher)->count();
     }
 
     /**
