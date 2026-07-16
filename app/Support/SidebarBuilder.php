@@ -60,10 +60,10 @@ final class SidebarBuilder
             ]),
 
             $this->group('Sistem', [
-                $this->item('Pengguna', 'UserRound', 'users.viewAny'),
-                $this->item('Role & Permission', 'ShieldCheck', 'roles.viewAny'),
-                $this->item('Pengaturan', 'Settings', 'settings.view'),
-                $this->item('Log Aktivitas', 'ScrollText', 'activity-log.viewAny'),
+                $this->item('Pengguna', 'UserRound', 'users.viewAny', route: 'system.users.index'),
+                $this->item('Role & Permission', 'ShieldCheck', 'roles.viewAny', route: 'system.roles.index'),
+                $this->item('Pengaturan', 'Settings', 'settings.view', route: 'system.settings.edit'),
+                $this->item('Log Aktivitas', 'ScrollText', 'activity-log.viewAny', route: 'system.activity.index'),
             ]),
         ];
 

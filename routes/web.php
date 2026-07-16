@@ -17,3 +17,4 @@ require __DIR__.'/auth.php';
 require __DIR__.'/master.php';
 require __DIR__.'/pkl.php';
 require __DIR__.'/reports.php';
+require __DIR__.'/system.php';

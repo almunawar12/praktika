@@ -15,6 +15,7 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebar: NavGroup[];
+            impersonating: { name: string } | null;
             flash: {
                 status: string | null;
                 success: string | null;

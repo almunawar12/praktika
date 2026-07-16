@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\System\ImpersonationController;
 use App\Models\User;
 use App\Support\SidebarBuilder;
 use Illuminate\Http\Request;
@@ -47,12 +48,28 @@ class HandleInertiaRequests extends Middleware
                     : $user->getAllPermissions()->pluck('name')->all(),
             ],
             'sidebar' => $user === null ? [] : $this->sidebar->build($user),
+            'impersonating' => $this->impersonation($request, $user),
             'flash' => [
                 'status' => fn (): ?string => $request->session()->get('status'),
                 'success' => fn (): ?string => $request->session()->get('success'),
                 'error' => fn (): ?string => $request->session()->get('error'),
             ],
         ];
+    }
+
+    /**
+     * When an admin is impersonating someone, the banner needs to say who is being
+     * seen and offer a way back. Null in the ordinary case.
+     *
+     * @return array<string, string>|null
+     */
+    private function impersonation(Request $request, ?User $user): ?array
+    {
+        if ($user === null || ! $request->session()->has(ImpersonationController::SESSION_KEY)) {
+            return null;
+        }
+
+        return ['name' => $user->name];
     }
 
     /**

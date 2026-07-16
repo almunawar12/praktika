@@ -1,5 +1,5 @@
-import { Head, usePage } from '@inertiajs/react';
-import { GraduationCap, Menu } from 'lucide-react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { GraduationCap, Menu, UserCog } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import { toast } from 'sonner';
@@ -36,7 +36,7 @@ export default function AppLayout({
     children,
 }: AppLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false);
-    const flash = usePage().props.flash;
+    const { flash, impersonating } = usePage().props;
 
     useEffect(() => {
         if (flash.success) {
@@ -55,6 +55,22 @@ export default function AppLayout({
     return (
         <div className="min-h-svh bg-background">
             <Head title={title} />
+
+            {impersonating ? (
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950">
+                    <span className="flex items-center gap-1.5">
+                        <UserCog className="size-4" aria-hidden="true" />
+                        Anda menyamar sebagai {impersonating.name}
+                    </span>
+                    <button
+                        type="button"
+                        className="underline underline-offset-2 hover:no-underline"
+                        onClick={() => router.delete('/system/impersonation')}
+                    >
+                        Hentikan
+                    </button>
+                </div>
+            ) : null}
 
             {/* Mobile-first: the sidebar is a sheet below `lg` and a fixed rail above it. */}
             <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r bg-sidebar lg:block">

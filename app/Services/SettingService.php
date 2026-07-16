@@ -60,6 +60,16 @@ class SettingService
     }
 
     /**
+     * Store the assessment weights as a pair. The caller (UpdateSettingRequest) has
+     * already checked they sum to 1; this keeps the two writes together.
+     */
+    public function setWeights(float $industry, float $teacher): void
+    {
+        $this->set(self::WEIGHT_INDUSTRY, $industry, 'assessment');
+        $this->set(self::WEIGHT_TEACHER, $teacher, 'assessment');
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function all(): array
