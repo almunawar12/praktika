@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssessmentType;
+use App\Enums\AttendanceStatus;
 use App\Enums\ReviewStatus;
 use App\Enums\RoleName;
+use App\Models\Assessment;
+use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\Journal;
+use App\Models\Monitoring;
 use App\Models\Placement;
 use App\Models\Student;
 use Carbon\CarbonImmutable;
@@ -83,5 +88,82 @@ test('the journal tile counts pending journals and flags them', function (): voi
             ->where('overview.stats.4.value', 1)
             ->where('overview.stats.4.subLabel', 'Perlu verifikasi')
             ->where('overview.stats.4.subVariant', 'warning')
+        );
+});
+
+test('the activity chart zero-fills thirty days of counts', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-07-15 10:00:00'));
+
+    // Two placements: attendance is unique per placement per day, so two records
+    // on the same date can only come from two students.
+    $placements = Placement::factory()->active()->count(2)->create();
+
+    Attendance::factory()->create([
+        'placement_id' => $placements[0]->id,
+        'date' => '2026-07-10',
+    ]);
+    Attendance::factory()->create([
+        'placement_id' => $placements[1]->id,
+        'date' => '2026-07-10',
+    ]);
+    Journal::factory()->create([
+        'placement_id' => $placements[0]->id,
+        'date' => '2026-07-10',
+        'status' => ReviewStatus::Pending,
+    ]);
+    Monitoring::factory()->create([
+        'placement_id' => $placements[0]->id,
+        'visit_date' => '2026-07-10',
+    ]);
+    Assessment::factory()->create([
+        'placement_id' => $placements[0]->id,
+        'type' => AssessmentType::Industry,
+        'submitted_at' => '2026-07-10 09:00:00',
+    ]);
+
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('overview.activityChart', 30)
+            ->where('overview.activityChart.0.date', '2026-06-16')
+            ->where('overview.activityChart.29.date', '2026-07-15')
+            ->where('overview.activityChart.24.date', '2026-07-10')
+            ->where('overview.activityChart.24.absensi', 2)
+            ->where('overview.activityChart.24.jurnal', 1)
+            ->where('overview.activityChart.24.monitoring', 1)
+            ->where('overview.activityChart.24.penilaian', 1)
+            ->where('overview.activityChart.0.absensi', 0)
+        );
+});
+
+test('attendance today buckets statuses and derives alpha from active placements', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-07-15 10:00:00'));
+
+    $placements = Placement::factory()->active()->count(4)->create();
+
+    Attendance::factory()->create([
+        'placement_id' => $placements[0]->id,
+        'date' => '2026-07-15',
+        'status' => AttendanceStatus::Present,
+    ]);
+    Attendance::factory()->permit()->create([
+        'placement_id' => $placements[1]->id,
+        'date' => '2026-07-15',
+    ]);
+    Attendance::factory()->sick()->create([
+        'placement_id' => $placements[2]->id,
+        'date' => '2026-07-15',
+    ]);
+    // placements[3] has no record today: counted as alpha.
+
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('overview.attendanceToday.hadir', 1)
+            ->where('overview.attendanceToday.izin', 1)
+            ->where('overview.attendanceToday.sakit', 1)
+            ->where('overview.attendanceToday.alpha', 1)
+            ->where('overview.attendanceToday.total', 4)
+            ->where('overview.attendanceToday.rate', 25)
         );
 });

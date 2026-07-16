@@ -8,13 +8,16 @@ use App\Enums\AttendanceStatus;
 use App\Enums\PlacementStatus;
 use App\Enums\ReviewStatus;
 use App\Enums\VerificationStatus;
+use App\Models\Assessment;
 use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\Journal;
+use App\Models\Monitoring;
 use App\Models\Placement;
 use App\Models\Student;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Builds the rich dashboard payload for Admin PKL and Super Admin.
@@ -37,6 +40,8 @@ class DashboardOverviewService
     {
         return [
             'stats' => $this->stats($user),
+            'activityChart' => $this->activityChart($user),
+            'attendanceToday' => $this->attendanceToday($user),
         ];
     }
 
@@ -89,6 +94,94 @@ class DashboardOverviewService
     private function activeCount(User $user): int
     {
         return $this->activeCount ??= Placement::query()->visibleTo($user)->active()->count();
+    }
+
+    /**
+     * Daily activity counts for the last 30 days, zero-filled so the chart never
+     * has to guess at missing days. The frontend slices 7/14/30.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function activityChart(User $user): array
+    {
+        $start = CarbonImmutable::now()->subDays(29)->startOfDay();
+
+        $absensi = $this->dailyCounts(Attendance::query()->visibleTo($user), 'date', $start);
+        $jurnal = $this->dailyCounts(Journal::query()->visibleTo($user), 'date', $start);
+        $monitoring = $this->dailyCounts(Monitoring::query()->visibleTo($user), 'visit_date', $start);
+        $penilaian = $this->dailyCounts(
+            Assessment::query()->visibleTo($user)->whereNotNull('submitted_at'),
+            'submitted_at',
+            $start,
+        );
+
+        $days = [];
+
+        for ($i = 0; $i < 30; $i++) {
+            $date = $start->addDays($i)->toDateString();
+
+            $days[] = [
+                'date' => $date,
+                'absensi' => $absensi[$date] ?? 0,
+                'jurnal' => $jurnal[$date] ?? 0,
+                'monitoring' => $monitoring[$date] ?? 0,
+                'penilaian' => $penilaian[$date] ?? 0,
+            ];
+        }
+
+        return $days;
+    }
+
+    /**
+     * Count per calendar day. `date(...)` truncates timestamps in PostgreSQL.
+     *
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * @return array<string, int>
+     */
+    private function dailyCounts(Builder $query, string $column, CarbonImmutable $start): array
+    {
+        return $query
+            ->where($column, '>=', $start)
+            ->groupByRaw("date({$column})")
+            ->selectRaw("date({$column}) as day, count(*) as total")
+            ->pluck('total', 'day')
+            ->mapWithKeys(fn (int|string $total, string $day): array => [
+                CarbonImmutable::parse($day)->toDateString() => (int) $total,
+            ])
+            ->all();
+    }
+
+    /**
+     * Today's attendance split. Alpha is derived, not stored: every active
+     * placement not accounted for by a non-rejected hadir/izin/sakit record —
+     * which also absorbs the nightly `absent` rows.
+     *
+     * @return array<string, mixed>
+     */
+    private function attendanceToday(User $user): array
+    {
+        $total = $this->activeCount($user);
+
+        $today = Attendance::query()
+            ->visibleTo($user)
+            ->whereDate('date', CarbonImmutable::now()->toDateString())
+            ->where('verification_status', '!=', VerificationStatus::Rejected)
+            ->groupBy('status')
+            ->selectRaw('status, count(*) as total')
+            ->pluck('total', 'status');
+
+        $hadir = (int) ($today[AttendanceStatus::Present->value] ?? 0);
+        $izin = (int) ($today[AttendanceStatus::Permit->value] ?? 0);
+        $sakit = (int) ($today[AttendanceStatus::Sick->value] ?? 0);
+
+        return [
+            'hadir' => $hadir,
+            'izin' => $izin,
+            'sakit' => $sakit,
+            'alpha' => max(0, $total - $hadir - $izin - $sakit),
+            'total' => $total,
+            'rate' => $total > 0 ? (float) round($hadir / $total * 100, 1) : 0.0,
+        ];
     }
 
     /**
