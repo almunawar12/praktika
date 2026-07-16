@@ -32,6 +32,8 @@ use Carbon\CarbonImmutable;
  */
 class DashboardService
 {
+    public function __construct(private readonly DashboardOverviewService $overview) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -44,7 +46,23 @@ class DashboardService
             'roleLabel' => $role?->label(),
             'stats' => $this->statsFor($user, $role),
             'recentActivities' => $this->recentActivities($user),
+            'overview' => $this->overviewFor($user, $role),
         ];
+    }
+
+    /**
+     * The rich overview exists only for the two admin roles; everyone else
+     * renders the plain tile dashboard and gets an explicit null.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function overviewFor(User $user, ?RoleName $role): ?array
+    {
+        if (! in_array($role, [RoleName::SuperAdmin, RoleName::AdminPkl], true)) {
+            return null;
+        }
+
+        return $this->overview->forAdmin($user);
     }
 
     /**
