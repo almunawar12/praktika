@@ -1,3 +1,4 @@
+import { AdminOverview } from '@/components/dashboard/admin-overview';
 import { StatCard } from '@/components/dashboard/stat-card';
 import type { Stat } from '@/components/dashboard/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import {
 } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import AppLayout from '@/layouts/app-layout';
+import type { DashboardOverview } from '@/types/dashboard';
 
 type RecentActivity = {
     id: string;
@@ -24,6 +26,7 @@ type DashboardProps = {
     roleLabel: string | null;
     stats: Stat[];
     recentActivities: RecentActivity[];
+    overview: DashboardOverview | null;
 };
 
 function formatDate(iso: string | null): string {
@@ -41,8 +44,23 @@ export default function Dashboard({
     roleLabel,
     stats,
     recentActivities,
+    overview,
 }: DashboardProps) {
     const { user } = useAuth();
+
+    // Only the two admin roles are served an overview; everyone else falls
+    // through to the plain tile dashboard below.
+    if (overview !== null) {
+        return (
+            <AppLayout
+                headTitle="Dashboard"
+                title={`Selamat datang, ${user?.name ?? ''} 👋`}
+                description="Berikut ringkasan kegiatan PKL hari ini."
+            >
+                <AdminOverview overview={overview} />
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout

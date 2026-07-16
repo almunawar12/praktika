@@ -16,6 +16,8 @@ import { Toaster } from '@/components/ui/sonner';
 
 type AppLayoutProps = PropsWithChildren<{
     title: string;
+    /** Browser-tab title when it should differ from the page heading. */
+    headTitle?: string;
     description?: string;
 }>;
 
@@ -32,6 +34,7 @@ function Brand() {
 
 export default function AppLayout({
     title,
+    headTitle,
     description,
     children,
 }: AppLayoutProps) {
@@ -54,7 +57,7 @@ export default function AppLayout({
 
     return (
         <div className="min-h-svh bg-background">
-            <Head title={title} />
+            <Head title={headTitle ?? title} />
 
             {impersonating ? (
                 <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950">
