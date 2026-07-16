@@ -77,8 +77,11 @@ class PlacementPolicy
             return $user->student !== null && $placement->student_id === $user->student->id;
         }
 
-        // Pembimbing Industri has no company link until the company_supervisors
-        // module exists; deny rather than leak.
+        if ($user->hasRole(RoleName::PembimbingIndustri->value)) {
+            return $user->companySupervisor !== null
+                && $placement->company_id === $user->companySupervisor->company_id;
+        }
+
         return false;
     }
 }

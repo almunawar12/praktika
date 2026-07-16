@@ -100,6 +100,14 @@ class User extends Authenticatable
     }
 
     /**
+     * @return HasOne<CompanySupervisor, $this>
+     */
+    public function companySupervisor(): HasOne
+    {
+        return $this->hasOne(CompanySupervisor::class);
+    }
+
+    /**
      * The single role assigned to this user, if any.
      *
      * Praktika assigns exactly one role per user; `roles` stays a relation

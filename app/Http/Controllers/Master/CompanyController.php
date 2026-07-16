@@ -26,7 +26,7 @@ class CompanyController extends Controller
         $table = TableRequest::fromRequest($request, ['is_active']);
 
         return Inertia::render('master/companies/index', [
-            'companies' => $this->companies->paginate($table),
+            'companies' => $this->companies->paginate($table, $request->user()),
             'table' => $table->toArray(),
             'sortable' => CompanyService::SORTABLE,
         ]);

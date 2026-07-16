@@ -80,8 +80,11 @@ class AttendancePolicy
             return $user->student !== null && $placement->student_id === $user->student->id;
         }
 
-        // Pembimbing Industri scopes by company; company_supervisors does not exist
-        // yet, so deny rather than leak.
+        if ($user->hasRole(RoleName::PembimbingIndustri->value)) {
+            return $user->companySupervisor !== null
+                && $placement->company_id === $user->companySupervisor->company_id;
+        }
+
         return false;
     }
 }

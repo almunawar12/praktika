@@ -136,10 +136,16 @@ class Placement extends Model
             return;
         }
 
-        // Pembimbing Industri is scoped by company, but the company_supervisors module
-        // does not exist yet, so there is no link to scope by. Deny rather than leak:
-        // returning unscoped here would show one company's supervisor every school's
-        // placements.
+        if ($user->hasRole(RoleName::PembimbingIndustri->value)) {
+            // Scoped by company, not by a per-placement supervisor field: a placement
+            // may exist before anyone is named on it, and scoping by that field would
+            // hide students from the very supervisor hosting them.
+            $query->where('company_id', $user->companySupervisor?->company_id);
+
+            return;
+        }
+
+        // Any other role has no defined slice. Deny rather than leak.
         $query->whereRaw('1 = 0');
     }
 }

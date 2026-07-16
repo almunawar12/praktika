@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Master\CompanyController;
+use App\Http\Controllers\Master\CompanySupervisorController;
 use App\Http\Controllers\Master\DepartmentController;
 use App\Http\Controllers\Master\SchoolClassController;
 use App\Http\Controllers\Master\StudentController;
@@ -30,4 +31,8 @@ Route::middleware('auth')->prefix('master')->name('master.')->group(function ():
 
     Route::resource('students', StudentController::class)
         ->middleware('can:students.viewAny');
+
+    Route::resource('supervisors', CompanySupervisorController::class)
+        ->parameters(['supervisors' => 'supervisor'])
+        ->middleware('can:company-supervisors.viewAny');
 });

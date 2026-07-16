@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PlacementStatus;
+use App\Enums\RoleName;
 use Carbon\CarbonImmutable;
 use Database\Factories\StudentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -98,5 +100,45 @@ class Student extends Model
     public function email(): string
     {
         return $this->user->email;
+    }
+
+    /**
+     * Row-level scope (ADD § 9, StudentPolicy).
+     *
+     * The student directory carries names, NIS, NISN, email and phone numbers of
+     * minors. School staff see the school; a Pembimbing Industri is an external
+     * party and sees only the students actually placed with their company.
+     *
+     * @param  Builder<Student>  $query
+     */
+    public function scopeVisibleTo(Builder $query, User $user): void
+    {
+        // School staff see the whole directory.
+        if ($user->hasAnyRole([
+            RoleName::SuperAdmin->value,
+            RoleName::AdminPkl->value,
+            RoleName::GuruPembimbing->value,
+        ])) {
+            return;
+        }
+
+        if ($user->hasRole(RoleName::PembimbingIndustri->value)) {
+            $query->whereIn(
+                'id',
+                Placement::query()
+                    ->where('company_id', $user->companySupervisor?->company_id)
+                    ->select('student_id'),
+            );
+
+            return;
+        }
+
+        if ($user->hasRole(RoleName::Siswa->value)) {
+            $query->whereKey($user->student?->id);
+
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
     }
 }

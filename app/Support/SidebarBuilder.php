@@ -37,7 +37,7 @@ final class SidebarBuilder
                 $this->item('Siswa', 'GraduationCap', 'students.viewAny', route: 'master.students.index'),
                 $this->item('Guru', 'Users', 'teachers.viewAny', route: 'master.teachers.index'),
                 $this->item('Perusahaan', 'Building2', 'companies.viewAny', route: 'master.companies.index'),
-                $this->item('Pembimbing Industri', 'UserCog', 'company-supervisors.viewAny'),
+                $this->item('Pembimbing Industri', 'UserCog', 'company-supervisors.viewAny', route: 'master.supervisors.index'),
             ]),
 
             $this->group('PKL', [

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Models\Company;
+use App\Models\CompanySupervisor;
 use App\Models\Department;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -40,8 +41,13 @@ class MasterDataSeeder extends Seeder
 
         Teacher::factory()->count(8)->create();
 
-        Company::factory()->count(12)->create();
+        $companies = Company::factory()->count(12)->create();
         Company::factory()->count(2)->inactive()->create();
+
+        // One supervisor per company: without an account, a Pembimbing Industri can
+        // not verify attendance or review journals at all.
+        $companies->each(fn (Company $company) => CompanySupervisor::factory()
+            ->create(['company_id' => $company->id]));
 
         // Spread students across every class so the class/department filters have
         // something to actually filter.
@@ -50,11 +56,12 @@ class MasterDataSeeder extends Seeder
             ->create(['class_id' => $class->id]));
 
         $this->command->info(sprintf(
-            'Master data: %d jurusan, %d kelas, %d guru, %d perusahaan, %d siswa.',
+            'Master data: %d jurusan, %d kelas, %d guru, %d perusahaan, %d pembimbing industri, %d siswa.',
             Department::count(),
             SchoolClass::count(),
             Teacher::count(),
             Company::count(),
+            CompanySupervisor::count(),
             Student::count(),
         ));
     }

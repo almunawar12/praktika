@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PlacementStatus;
+use App\Enums\RoleName;
 use Carbon\CarbonImmutable;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,6 +36,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property CarbonImmutable|null $deleted_at
  * @property-read Collection<int, Placement> $placements
  * @property-read Collection<int, Placement> $activePlacements
+ * @property-read Collection<int, CompanySupervisor> $supervisors
  */
 #[Fillable([
     'name', 'business_field', 'address', 'pic_name', 'pic_phone', 'quota', 'is_active',
@@ -58,6 +61,54 @@ class Company extends Model
             'is_active' => 'boolean',
             'geofence_radius_m' => 'integer',
         ];
+    }
+
+    /**
+     * @return HasMany<CompanySupervisor, $this>
+     */
+    public function supervisors(): HasMany
+    {
+        return $this->hasMany(CompanySupervisor::class);
+    }
+
+    /**
+     * Row-level scope (ADD § 9, CompanyPolicy).
+     *
+     * The DUDI list carries every company's quota and PIC phone number — commercial
+     * detail that a student or a rival company's supervisor has no business
+     * browsing. School staff see all of it; everyone else sees only the company
+     * they are attached to.
+     *
+     * @param  Builder<Company>  $query
+     */
+    public function scopeVisibleTo(Builder $query, User $user): void
+    {
+        if ($user->hasAnyRole([
+            RoleName::SuperAdmin->value,
+            RoleName::AdminPkl->value,
+            RoleName::GuruPembimbing->value,
+        ])) {
+            return;
+        }
+
+        if ($user->hasRole(RoleName::PembimbingIndustri->value)) {
+            $query->whereKey($user->companySupervisor?->company_id);
+
+            return;
+        }
+
+        if ($user->hasRole(RoleName::Siswa->value)) {
+            $query->whereIn(
+                'id',
+                Placement::query()
+                    ->where('student_id', $user->student?->id)
+                    ->select('company_id'),
+            );
+
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
     }
 
     /**

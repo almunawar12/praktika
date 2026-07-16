@@ -21,7 +21,13 @@ class StudentPolicy
             return true;
         }
 
-        return $user->can('students.view');
+        if (! $user->can('students.view')) {
+            return false;
+        }
+
+        // Permission is not enough: a Pembimbing Industri is external to the school
+        // and may only read students actually placed with their company (ADD § 9).
+        return Student::query()->visibleTo($user)->whereKey($student->getKey())->exists();
     }
 
     public function create(User $user): bool

@@ -16,7 +16,14 @@ class CompanyPolicy
 
     public function view(User $user, Company $company): bool
     {
-        return $user->can('companies.view');
+        if (! $user->can('companies.view')) {
+            return false;
+        }
+
+        // Permission is not enough: quota and PIC contact details are commercial
+        // information, so a student sees only their PKL company and a supervisor
+        // only their own (ADD § 9).
+        return Company::query()->visibleTo($user)->whereKey($company->getKey())->exists();
     }
 
     public function create(User $user): bool

@@ -7,6 +7,7 @@ namespace App\Services;
 use App\DataTransferObjects\TableRequest;
 use App\Exceptions\ResourceInUseException;
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class CompanyService
@@ -16,9 +17,10 @@ class CompanyService
     /**
      * @return LengthAwarePaginator<int, Company>
      */
-    public function paginate(TableRequest $table): LengthAwarePaginator
+    public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator
     {
         return Company::query()
+            ->visibleTo($viewer)
             ->when($table->search, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('name', 'ilike', "%{$search}%")

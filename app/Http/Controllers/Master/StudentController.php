@@ -29,7 +29,7 @@ class StudentController extends Controller
         $table = TableRequest::fromRequest($request, ['class_id', 'department_id']);
 
         return Inertia::render('master/students/index', [
-            'students' => $this->students->paginate($table),
+            'students' => $this->students->paginate($table, $request->user()),
             'table' => $table->toArray(),
             'sortable' => StudentService::SORTABLE,
             'classes' => $this->classOptions(),

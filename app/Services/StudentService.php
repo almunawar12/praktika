@@ -9,6 +9,7 @@ use App\DataTransferObjects\TableRequest;
 use App\Enums\RoleName;
 use App\Exceptions\ResourceInUseException;
 use App\Models\Student;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -21,9 +22,10 @@ class StudentService
     /**
      * @return LengthAwarePaginator<int, Student>
      */
-    public function paginate(TableRequest $table): LengthAwarePaginator
+    public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator
     {
         return Student::query()
+            ->visibleTo($viewer)
             ->with(['user:id,email,is_active', 'schoolClass:id,name,department_id', 'schoolClass.department:id,code,name'])
             ->when($table->search, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
