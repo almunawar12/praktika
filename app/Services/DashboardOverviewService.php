@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AssessmentType;
 use App\Enums\AttendanceStatus;
 use App\Enums\PlacementStatus;
 use App\Enums\ReviewStatus;
@@ -18,6 +19,7 @@ use App\Models\Student;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Builds the rich dashboard payload for Admin PKL and Super Admin.
@@ -42,6 +44,9 @@ class DashboardOverviewService
             'stats' => $this->stats($user),
             'activityChart' => $this->activityChart($user),
             'attendanceToday' => $this->attendanceToday($user),
+            'pendingJournals' => $this->pendingJournals($user),
+            'recentAssessments' => $this->recentAssessments($user),
+            'activeByDepartment' => $this->activeByDepartment($user),
         ];
     }
 
@@ -135,7 +140,12 @@ class DashboardOverviewService
     /**
      * Count per calendar day. `date(...)` truncates timestamps in PostgreSQL.
      *
-     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * The column is `literal-string` rather than `string` so it can never carry
+     * anything but the fixed names the callers pass — the raw fragments below are
+     * built from it.
+     *
+     * @param  Builder<covariant Model>  $query
+     * @param  literal-string  $column
      * @return array<string, int>
      */
     private function dailyCounts(Builder $query, string $column, CarbonImmutable $start): array
@@ -202,6 +212,87 @@ class DashboardOverviewService
         }
 
         return (string) (float) round($part / $whole * 100, 1).'%';
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function pendingJournals(User $user): array
+    {
+        return Journal::query()
+            ->visibleTo($user)
+            ->where('status', ReviewStatus::Pending)
+            ->with(['placement.student.schoolClass', 'placement.company'])
+            ->latest('created_at')
+            ->limit(4)
+            ->get()
+            ->map(fn (Journal $journal): array => [
+                'id' => $journal->id,
+                'student' => $journal->placement->student->name,
+                'className' => $journal->placement->student->schoolClass->name,
+                'company' => $journal->placement->company->name,
+                'submittedAt' => $journal->created_at?->toIso8601String(),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentAssessments(User $user): array
+    {
+        return Assessment::query()
+            ->visibleTo($user)
+            ->whereNotNull('submitted_at')
+            ->with(['placement.student', 'placement.company'])
+            ->latest('submitted_at')
+            ->limit(4)
+            ->get()
+            ->map(fn (Assessment $assessment): array => [
+                'id' => $assessment->id,
+                'student' => $assessment->placement->student->name,
+                'company' => $assessment->placement->company->name,
+                'type' => $assessment->type === AssessmentType::Industry ? 'Industri' : 'Guru',
+                'score' => $assessment->average_score !== null ? (float) $assessment->average_score : null,
+            ])
+            ->all();
+    }
+
+    /**
+     * Active placements per jurusan. Joins walk placement → student → class →
+     * department; soft-deleted rows on the joined tables are excluded manually
+     * since joins bypass the models' global scopes.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function activeByDepartment(User $user): array
+    {
+        $rows = Placement::query()
+            ->visibleTo($user)
+            ->active()
+            ->join('students', 'students.id', '=', 'placements.student_id')
+            ->join('school_classes', 'school_classes.id', '=', 'students.class_id')
+            ->join('departments', 'departments.id', '=', 'school_classes.department_id')
+            ->whereNull('students.deleted_at')
+            ->whereNull('school_classes.deleted_at')
+            ->whereNull('departments.deleted_at')
+            ->groupBy('departments.id', 'departments.name')
+            ->selectRaw('departments.name, count(*) as total')
+            ->orderByDesc('total')
+            // Aggregate rows, not placements: hydrating them into models would
+            // produce Placement instances carrying neither id nor status.
+            ->toBase()
+            ->get();
+
+        $totalActive = (int) $rows->sum('total');
+
+        return $rows
+            ->map(fn (object $row): array => [
+                'name' => (string) $row->name,
+                'count' => (int) $row->total,
+                'percentage' => $totalActive > 0 ? (float) round((int) $row->total / $totalActive * 100, 1) : 0.0,
+            ])
+            ->all();
     }
 
     /**
