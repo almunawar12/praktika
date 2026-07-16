@@ -79,6 +79,11 @@ await page.waitForLoadState('networkidle');
   ```
   To find the culprit, walk every element and report ones whose
   `getBoundingClientRect().right` exceeds `clientWidth`, deepest first.
+- **Test tall UI at a short viewport (640–700px), not just 1000px+.** The sidebar
+  is `fixed inset-y-0` and the menu is ~990px tall, so anything that pins to the
+  viewport needs its own scroller — page scroll won't move it. Assert
+  reachability, not just "is it clipped": scroll the element and check the last
+  row lands inside `window.innerHeight`.
 - **shadcn `CardTitle` is a `div`, not a heading** — `getByRole('heading')` finds
   only the `<h1>` from `AppLayout`. Query card titles by text.
 - **Selects are Radix, not `<select>`** — drive them with
