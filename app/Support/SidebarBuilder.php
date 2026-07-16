@@ -53,10 +53,10 @@ final class SidebarBuilder
             ]),
 
             $this->group('Laporan', [
-                $this->item('Rekap Absensi', 'FileSpreadsheet', 'reports.attendance'),
-                $this->item('Rekap Jurnal', 'FileText', 'reports.journal'),
-                $this->item('Nilai PKL', 'FileBadge', 'reports.assessment'),
-                $this->item('Monitoring', 'FileSearch', 'reports.monitoring'),
+                $this->item('Rekap Absensi', 'FileSpreadsheet', 'reports.attendance', route: 'reports.index', query: ['type' => 'attendance']),
+                $this->item('Rekap Jurnal', 'FileText', 'reports.journal', route: 'reports.index', query: ['type' => 'journal']),
+                $this->item('Nilai PKL', 'FileBadge', 'reports.assessment', route: 'reports.index', query: ['type' => 'assessment']),
+                $this->item('Monitoring', 'FileSearch', 'reports.monitoring', route: 'reports.index', query: ['type' => 'monitoring']),
             ]),
 
             $this->group('Sistem', [
@@ -80,15 +80,16 @@ final class SidebarBuilder
     }
 
     /**
+     * @param  array<string, string>|null  $query
      * @return array<string, mixed>
      */
-    private function item(string $label, string $icon, string $permission, ?string $route = null): array
+    private function item(string $label, string $icon, string $permission, ?string $route = null, ?array $query = null): array
     {
         return [
             'label' => $label,
             'icon' => $icon,
             'permission' => $permission,
-            'href' => $route === null ? null : route($route),
+            'href' => $route === null ? null : route($route, $query ?? []),
             'enabled' => $route !== null,
         ];
     }

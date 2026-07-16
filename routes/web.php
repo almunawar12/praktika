@@ -16,3 +16,4 @@ Route::middleware('auth')->group(function (): void {
 require __DIR__.'/auth.php';
 require __DIR__.'/master.php';
 require __DIR__.'/pkl.php';
+require __DIR__.'/reports.php';

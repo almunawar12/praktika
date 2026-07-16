@@ -40,6 +40,9 @@ Dokumen ini adalah **acuan tunggal** untuk implementasi. Jika ada konflik antara
 | ADR-25 | **Nilai akhir dihitung otomatis, tombol Hitung Ulang untuk bobot berubah** (mengklarifikasi § 8) | ADD menyebut `AssessmentObserver` otomatis DAN endpoint `calculate` admin sekaligus, tanpa menjelaskan mana yang berlaku. Keduanya: observer menghitung begitu kedua sisi mengirim (tidak ada langkah admin yang bisa terlupa), tombol hanya untuk menghitung ulang dengan bobot terkini. Yang sudah dipublikasi tidak pernah dihitung ulang. |
 | ADR-26 | **`settings` dibangun di Fase 7, bukan Fase 10** | ADR-03 menaruh bobot penilaian di DB agar sekolah bisa mengubah 60/40 tanpa deploy — jadi tabelnya dibutuhkan begitu penilaian ada. `SettingSeeder` ikut jalan di produksi: bobot bukan data demo. UI pengelolaannya tetap Fase 10. |
 | ADR-27 | **`SettingService::weights()` jatuh ke default bila tidak berjumlah 1** | Divalidasi di request dan dijaga `final_scores_weights_check` di DB, tapi baris `settings` yang diedit tangan bisa melewati keduanya. Fallback mencegah satu baris rusak diam-diam mengacaukan setiap perhitungan. |
+| ADR-28 | **Cakupan laporan = `Placement::visibleTo` milik pemesan, bukan filter bebas** | Laporan dibangun lewat scope visibilitas orang yang memintanya, jadi sebuah rekap tidak pernah bisa memperluas apa yang boleh ia lihat: rekap guru berisi siswa bimbingannya, rekap pembimbing industri berisi perusahaannya. Filter jurusan/perusahaan/tanggal hanya mempersempit, tidak pernah memperlebar. Dikunci oleh tes scoping. |
+| ADR-29 | **Export milik pemesannya — admin pun tidak bisa membuka export orang lain** (mempertegas § 9) | `report_exports.scopeVisibleTo` = `requested_by = user`, dan `ReportExportPolicy::download/delete` memeriksa kepemilikan, bukan permission. Sebuah export adalah ekstrak data siswa yang sudah difilter satu orang; membiarkan role lain membukanya membocorkan irisan itu. Berkas disimpan di disk privat (`storage/app/private`) dan hanya dialirkan lewat route download yang terotorisasi. |
+| ADR-30 | **Baris export ada sebelum berkasnya; status = siklus hidup** | Job antrean membangun berkas, jadi baris lahir `pending`, lalu `processing`, lalu `completed`/`failed`. `report_exports_file_check` mengikat: hanya `completed` yang boleh punya `file_path`, dan `completed` wajib punya. `GenerateReportJob::failed()` mencatat alasan agar pemilik melihat sebab, bukan baris yang menggantung di "processing" selamanya. |
 
 ### Deviasi dari dokumen sumber — wajib diketahui
 
@@ -1140,7 +1143,7 @@ Semua widget agregat lewat `DashboardRepository` dengan query teragregasi (`sele
 | **6 — Monitoring** ✅ | monitorings + attachments | |
 | **7 — Penilaian** ✅ | assessments, assessment_scores, final_scores, `ScoreCalculatorService`, publikasi | Unit test rumus + snapshot bobot; test siswa tak lihat nilai belum publish |
 | **8 — Dashboard** | widget seluruh role + cache | Test payload per role; assert jumlah query |
-| **9 — Laporan** | ReportService, export async, riwayat | Test download hanya oleh pemilik |
+| **9 — Laporan** ✅ | ReportService, export async (PDF/Excel), riwayat | Test download hanya oleh pemilik; cakupan ikut visibilitas pemesan |
 | **10 — Sistem** | users, roles, settings, activity log, impersonate | |
 
 Urutan mengikuti prioritas coverage CLAUDE.md § Testing: Authentication → Attendance → Journal → Assessment → Placement. Fase 3 mendahului 4–5 karena `placements` adalah FK-nya.
