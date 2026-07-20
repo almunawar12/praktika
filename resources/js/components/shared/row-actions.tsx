@@ -1,4 +1,3 @@
-import { Link } from '@inertiajs/react';
 import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { DeleteDialog } from '@/components/shared/delete-dialog';
@@ -12,8 +11,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 type RowActionsProps = {
-    showHref: string;
-    editHref: string;
+    onShow: () => void;
+    onEdit: () => void;
     deleteHref: string;
     deleteDescription: string;
     canUpdate: boolean;
@@ -21,8 +20,8 @@ type RowActionsProps = {
 };
 
 export function RowActions({
-    showHref,
-    editHref,
+    onShow,
+    onEdit,
     deleteHref,
     deleteDescription,
     canUpdate,
@@ -40,19 +39,15 @@ export function RowActions({
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                        <Link href={showHref}>
-                            <Eye className="size-4" aria-hidden="true" />
-                            Detail
-                        </Link>
+                    <DropdownMenuItem onSelect={() => onShow()}>
+                        <Eye className="size-4" aria-hidden="true" />
+                        Detail
                     </DropdownMenuItem>
 
                     {canUpdate ? (
-                        <DropdownMenuItem asChild>
-                            <Link href={editHref}>
-                                <Pencil className="size-4" aria-hidden="true" />
-                                Ubah
-                            </Link>
+                        <DropdownMenuItem onSelect={() => onEdit()}>
+                            <Pencil className="size-4" aria-hidden="true" />
+                            Ubah
                         </DropdownMenuItem>
                     ) : null}
 
