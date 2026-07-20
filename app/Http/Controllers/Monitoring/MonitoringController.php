@@ -40,6 +40,7 @@ class MonitoringController extends Controller
             'monitorings' => $this->monitorings->paginate($table, $request->user()),
             'table' => $table->toArray(),
             'canCreate' => $request->user()->can('create', Monitoring::class),
+            'stats' => $this->monitorings->stats($request->user()),
         ]);
     }
 

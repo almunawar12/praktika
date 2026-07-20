@@ -30,6 +30,7 @@ class AttendanceController extends Controller
             'statuses' => $this->options(AttendanceStatus::cases()),
             'verificationStatuses' => $this->options(VerificationStatus::cases()),
             'canVerify' => $request->user()->can('attendances.verify'),
+            'stats' => $this->attendances->stats($request->user()),
         ]);
     }
 

@@ -34,6 +34,7 @@ class UserController extends Controller
             'roles' => $this->roleOptions(RoleName::cases()),
             // Roles this screen may hand out — the create/edit modal pickers.
             'assignableRoles' => $this->roleOptions(UserService::ASSIGNABLE),
+            'stats' => $this->users->stats(),
         ]);
     }
 

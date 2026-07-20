@@ -1,9 +1,15 @@
-import { Plus } from 'lucide-react';
+import {
+    CircleCheck,
+    CirclePause,
+    LogIn,
+    Plus,
+    Search,
+    Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { TablePager } from '@/components/data-table/table-pager';
 import { UserFields, type UserValues } from '@/components/system/user-form';
 import {
     UserModerationActions,
@@ -11,8 +17,18 @@ import {
 } from '@/components/system/user-moderation-actions';
 import { DeleteDialog } from '@/components/shared/delete-dialog';
 import { FormModal } from '@/components/shared/form-modal';
+import { StatCard } from '@/components/shared/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useResource } from '@/hooks/use-resource';
 import { useTableQuery } from '@/hooks/use-table-query';
 import AppLayout from '@/layouts/app-layout';
@@ -28,11 +44,19 @@ type UserRow = {
     last_login_at: string | null;
 };
 
+type Stats = {
+    total: number;
+    active: number;
+    inactive: number;
+    loggedIn: number;
+};
+
 type Props = {
     users: Paginated<UserRow>;
     table: TableState;
     roles: SelectOption[];
     assignableRoles: SelectOption[];
+    stats: Stats;
 };
 
 type UserResource = {
@@ -50,6 +74,8 @@ type UserResource = {
 
 type Modal = { mode: 'create' | 'edit'; id?: string } | null;
 
+const PER_PAGE_OPTIONS = ['10', '15', '25', '50'];
+
 function formatDate(value: string | null): string {
     return value === null
         ? 'Belum pernah'
@@ -64,6 +90,7 @@ export default function UserIndex({
     table,
     roles,
     assignableRoles,
+    stats,
 }: Props) {
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
         useTableQuery('/system/users', table);
@@ -80,6 +107,16 @@ export default function UserIndex({
     const close = () => setModal(null);
 
     const columns: Column<UserRow>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {users.from !== null ? users.from + index : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'name',
             header: 'Nama',
@@ -114,7 +151,7 @@ export default function UserIndex({
             header: 'Status',
             cell: (row) =>
                 row.is_active ? (
-                    <Badge className="border-transparent bg-emerald-600/15 text-emerald-700 dark:text-emerald-400">
+                    <Badge className="border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
                         Aktif
                     </Badge>
                 ) : (
@@ -133,8 +170,8 @@ export default function UserIndex({
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-16',
+            header: 'Aksi',
+            className: 'w-20',
             cell: (row) => (
                 <Button
                     variant="ghost"
@@ -148,53 +185,160 @@ export default function UserIndex({
     ];
 
     return (
-        <AppLayout title="Pengguna" description="Kelola akun dan akses">
-            <div className="flex flex-col gap-4">
-                <div className="flex justify-end">
-                    <Button onClick={() => setModal({ mode: 'create' })}>
-                        <Plus className="size-4" aria-hidden="true" />
-                        Tambah Pengguna
-                    </Button>
+        <AppLayout
+            title="Master Data - Pengguna"
+            headTitle="Pengguna"
+            description="Kelola akun dan akses pengguna sistem."
+            actions={
+                <Button onClick={() => setModal({ mode: 'create' })}>
+                    <Plus className="size-4" aria-hidden="true" />
+                    Tambah Pengguna
+                </Button>
+            }
+        >
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={Users}
+                        tone="blue"
+                        label="Total Pengguna"
+                        value={stats.total}
+                        hint="Semua akun"
+                    />
+                    <StatCard
+                        icon={CircleCheck}
+                        tone="green"
+                        label="Aktif"
+                        value={stats.active}
+                        hint="Bisa login"
+                    />
+                    <StatCard
+                        icon={CirclePause}
+                        tone="amber"
+                        label="Nonaktif"
+                        value={stats.inactive}
+                        hint="Diblokir"
+                    />
+                    <StatCard
+                        icon={LogIn}
+                        tone="violet"
+                        label="Pernah Login"
+                        value={stats.loggedIn}
+                        hint="Sudah mengaktifkan akun"
+                    />
                 </div>
 
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari nama atau email..."
-                    filters={[
-                        {
-                            key: 'role',
-                            label: 'Role',
-                            value: table.filters.role ?? 'all',
-                            options: roles,
-                        },
-                        {
-                            key: 'status',
-                            label: 'Status',
-                            value: table.filters.status ?? 'all',
-                            options: [
-                                { value: 'active', label: 'Aktif' },
-                                { value: 'inactive', label: 'Nonaktif' },
-                            ],
-                        },
-                    ]}
-                    onFilterChange={filterBy}
-                />
+                <Card>
+                    <CardContent className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Select
+                                    value={String(users.per_page)}
+                                    onValueChange={setPerPage}
+                                >
+                                    <SelectTrigger
+                                        className="w-[72px]"
+                                        aria-label="Jumlah baris per halaman"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {PER_PAGE_OPTIONS.map((option) => (
+                                            <SelectItem
+                                                key={option}
+                                                value={option}
+                                            >
+                                                {option}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                data per halaman
+                            </div>
 
-                <DataTable
-                    columns={columns}
-                    page={users}
-                    state={table}
-                    onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada pengguna."
-                />
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <Select
+                                    value={table.filters.role ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('role', value)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        className="sm:w-44"
+                                        aria-label="Filter role"
+                                    >
+                                        <SelectValue placeholder="Semua role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua role
+                                        </SelectItem>
+                                        {roles.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
 
-                <DataTablePagination
-                    page={users}
-                    onPageChange={goToPage}
-                    onPerPageChange={setPerPage}
-                />
+                                <Select
+                                    value={table.filters.status ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('status', value)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        className="sm:w-36"
+                                        aria-label="Filter status"
+                                    >
+                                        <SelectValue placeholder="Semua status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua status
+                                        </SelectItem>
+                                        <SelectItem value="active">
+                                            Aktif
+                                        </SelectItem>
+                                        <SelectItem value="inactive">
+                                            Nonaktif
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="relative sm:w-60">
+                                    <Search
+                                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <Input
+                                        value={search}
+                                        onChange={(event) =>
+                                            setSearch(event.target.value)
+                                        }
+                                        placeholder="Cari nama atau email..."
+                                        className="pl-9"
+                                        aria-label="Cari pengguna"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <DataTable
+                            columns={columns}
+                            page={users}
+                            state={table}
+                            onSort={sortBy}
+                            rowKey={(row) => row.id}
+                            emptyMessage="Belum ada pengguna."
+                        />
+
+                        <TablePager page={users} onPageChange={goToPage} />
+                    </CardContent>
+                </Card>
             </div>
 
             <FormModal<UserValues>
@@ -238,8 +382,6 @@ export default function UserIndex({
                         email: manage.data.user.email,
                         phone: manage.data.user.phone ?? '',
                         is_active: manage.data.user.is_active,
-                        // A profile-backed account keeps the role its module assigned,
-                        // so the picker is hidden and no role is submitted.
                         role: manage.data.hasProfile
                             ? ''
                             : (manage.data.user.role ?? ''),

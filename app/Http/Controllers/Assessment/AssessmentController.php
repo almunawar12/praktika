@@ -38,6 +38,7 @@ class AssessmentController extends Controller
                 fn (AssessmentType $t): array => ['value' => $t->value, 'label' => $t->label()],
                 AssessmentType::cases(),
             ),
+            'stats' => $this->assessments->stats($request->user()),
         ]);
     }
 

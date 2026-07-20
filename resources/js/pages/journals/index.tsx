@@ -1,11 +1,18 @@
 import { Link } from '@inertiajs/react';
-import { Paperclip, Plus } from 'lucide-react';
-import { DataTable } from '@/components/data-table/data-table';
+import {
+    CircleCheck,
+    CircleX,
+    Clock,
+    NotebookPen,
+    Paperclip,
+    Plus,
+} from 'lucide-react';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { DataTableCard } from '@/components/data-table/data-table-card';
+import { FilterSelect } from '@/components/data-table/filter-select';
 import { ReviewBadge } from '@/components/journal/review-badges';
 import type { ReviewStatus } from '@/components/journal/review-badges';
+import { StatCard } from '@/components/shared/stat-card';
 import { Button } from '@/components/ui/button';
 import { useTableQuery } from '@/hooks/use-table-query';
 import AppLayout from '@/layouts/app-layout';
@@ -26,6 +33,13 @@ type Journal = {
     };
 };
 
+type Stats = {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+};
+
 type Props = {
     journals: Paginated<Journal>;
     table: TableState;
@@ -35,6 +49,7 @@ type Props = {
         reviewAsIndustry: boolean;
         reviewAsTeacher: boolean;
     };
+    stats: Stats;
 };
 
 function formatDate(iso: string): string {
@@ -48,12 +63,11 @@ export default function JournalIndex({
     table,
     statuses,
     can,
+    stats,
 }: Props) {
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
         useTableQuery('/journals', table);
 
-    // "Needs my review" is the query a reviewer actually wants; which queue depends
-    // on which stage they own.
     const queueOptions: SelectOption[] = [];
 
     if (can.reviewAsIndustry) {
@@ -65,6 +79,16 @@ export default function JournalIndex({
     }
 
     const columns: Column<Journal>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {journals.from !== null ? journals.from + index : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'date',
             header: 'Tanggal',
@@ -105,10 +129,7 @@ export default function JournalIndex({
             header: 'Review',
             cell: (row) => (
                 <div className="flex flex-wrap gap-1">
-                    <ReviewBadge
-                        status={row.industry_status}
-                        prefix="Industri"
-                    />
+                    <ReviewBadge status={row.industry_status} prefix="Industri" />
                     <ReviewBadge status={row.teacher_status} prefix="Guru" />
                 </div>
             ),
@@ -134,8 +155,8 @@ export default function JournalIndex({
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-12',
+            header: 'Aksi',
+            className: 'w-20',
             cell: (row) => (
                 <Button variant="ghost" size="sm" asChild>
                     <Link href={`/journals/${row.id}`}>Detail</Link>
@@ -145,55 +166,88 @@ export default function JournalIndex({
     ];
 
     return (
-        <AppLayout title="Jurnal" description="Jurnal harian kegiatan PKL">
-            <div className="flex flex-col gap-4">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari kegiatan, nama siswa, atau NIS..."
-                    filters={[
-                        {
-                            key: 'status',
-                            label: 'Status',
-                            value: table.filters.status ?? 'all',
-                            options: statuses,
-                        },
-                        ...(queueOptions.length > 0
-                            ? [
-                                  {
-                                      key: 'queue',
-                                      label: 'Antrian',
-                                      value: table.filters.queue ?? 'all',
-                                      options: queueOptions,
-                                  },
-                              ]
-                            : []),
-                    ]}
-                    onFilterChange={filterBy}
-                >
-                    {can.create ? (
-                        <Button asChild>
-                            <Link href="/journals/create">
-                                <Plus className="size-4" aria-hidden="true" />
-                                Isi Jurnal
-                            </Link>
-                        </Button>
-                    ) : null}
-                </DataTableToolbar>
+        <AppLayout
+            title="Jurnal Harian"
+            description="Jurnal harian kegiatan PKL siswa dan statusnya."
+            actions={
+                can.create ? (
+                    <Button asChild>
+                        <Link href="/journals/create">
+                            <Plus className="size-4" aria-hidden="true" />
+                            Isi Jurnal
+                        </Link>
+                    </Button>
+                ) : undefined
+            }
+        >
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={NotebookPen}
+                        tone="blue"
+                        label="Total Jurnal"
+                        value={stats.total}
+                        hint="Semua entri"
+                    />
+                    <StatCard
+                        icon={Clock}
+                        tone="amber"
+                        label="Menunggu"
+                        value={stats.pending}
+                        hint="Belum direview"
+                    />
+                    <StatCard
+                        icon={CircleCheck}
+                        tone="green"
+                        label="Disetujui"
+                        value={stats.approved}
+                        hint="Review selesai"
+                    />
+                    <StatCard
+                        icon={CircleX}
+                        tone="violet"
+                        label="Ditolak"
+                        value={stats.rejected}
+                        hint="Perlu perbaikan"
+                    />
+                </div>
 
-                <DataTable
+                <DataTableCard
                     columns={columns}
                     page={journals}
                     state={table}
                     onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada jurnal."
-                />
-
-                <DataTablePagination
-                    page={journals}
                     onPageChange={goToPage}
                     onPerPageChange={setPerPage}
+                    rowKey={(row) => row.id}
+                    search={search}
+                    onSearchChange={setSearch}
+                    searchPlaceholder="Cari kegiatan, nama siswa, atau NIS..."
+                    emptyMessage="Belum ada jurnal."
+                    filters={
+                        <>
+                            <FilterSelect
+                                label="Filter status"
+                                allLabel="Semua status"
+                                value={table.filters.status ?? 'all'}
+                                onValueChange={(value) =>
+                                    filterBy('status', value)
+                                }
+                                options={statuses}
+                            />
+                            {queueOptions.length > 0 ? (
+                                <FilterSelect
+                                    label="Filter antrian"
+                                    allLabel="Semua antrian"
+                                    value={table.filters.queue ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('queue', value)
+                                    }
+                                    options={queueOptions}
+                                />
+                            ) : null}
+                        </>
+                    }
                 />
             </div>
         </AppLayout>

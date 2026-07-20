@@ -1,9 +1,9 @@
 import { Link, router } from '@inertiajs/react';
-import { Lock, LockOpen } from 'lucide-react';
-import { DataTable } from '@/components/data-table/data-table';
+import { ClipboardList, FilePen, Gauge, Lock, LockOpen } from 'lucide-react';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { DataTableCard } from '@/components/data-table/data-table-card';
+import { FilterSelect } from '@/components/data-table/filter-select';
+import { StatCard } from '@/components/shared/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePermission } from '@/hooks/use-permission';
@@ -24,10 +24,18 @@ type Assessment = {
     };
 };
 
+type Stats = {
+    total: number;
+    submitted: number;
+    draft: number;
+    average: number | null;
+};
+
 type Props = {
     assessments: Paginated<Assessment>;
     table: TableState;
     types: SelectOption[];
+    stats: Stats;
 };
 
 const TYPE_LABELS: Record<Assessment['type'], string> = {
@@ -35,7 +43,12 @@ const TYPE_LABELS: Record<Assessment['type'], string> = {
     teacher: 'Guru',
 };
 
-export default function AssessmentIndex({ assessments, table, types }: Props) {
+export default function AssessmentIndex({
+    assessments,
+    table,
+    types,
+    stats,
+}: Props) {
     const { can } = usePermission();
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
         useTableQuery('/assessments', table);
@@ -43,6 +56,18 @@ export default function AssessmentIndex({ assessments, table, types }: Props) {
     const canUnlock = can('assessments.viewAny') && can('final-scores.publish');
 
     const columns: Column<Assessment>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {assessments.from !== null
+                        ? assessments.from + index
+                        : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'student',
             header: 'Siswa',
@@ -106,11 +131,9 @@ export default function AssessmentIndex({ assessments, table, types }: Props) {
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-12',
+            header: 'Aksi',
+            className: 'w-20',
             cell: (row) =>
-                // Reopening changes the evidence a final score rests on, so it is an
-                // admin decision — see AssessmentPolicy::unlock.
                 canUnlock && row.submitted_at ? (
                     <Button
                         variant="ghost"
@@ -141,46 +164,81 @@ export default function AssessmentIndex({ assessments, table, types }: Props) {
     return (
         <AppLayout
             title="Penilaian"
-            description="Penilaian industri dan guru pembimbing"
+            description="Penilaian industri dan guru pembimbing untuk setiap siswa PKL."
         >
-            <div className="flex flex-col gap-4">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari nama siswa atau NIS..."
-                    filters={[
-                        {
-                            key: 'type',
-                            label: 'Jenis',
-                            value: table.filters.type ?? 'all',
-                            options: types,
-                        },
-                        {
-                            key: 'state',
-                            label: 'Status',
-                            value: table.filters.state ?? 'all',
-                            options: [
-                                { value: 'draft', label: 'Draft' },
-                                { value: 'submitted', label: 'Terkirim' },
-                            ],
-                        },
-                    ]}
-                    onFilterChange={filterBy}
-                />
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={ClipboardList}
+                        tone="blue"
+                        label="Total Penilaian"
+                        value={stats.total}
+                        hint="Semua penilaian"
+                    />
+                    <StatCard
+                        icon={Lock}
+                        tone="green"
+                        label="Terkirim"
+                        value={stats.submitted}
+                        hint="Sudah dikunci"
+                    />
+                    <StatCard
+                        icon={FilePen}
+                        tone="amber"
+                        label="Draft"
+                        value={stats.draft}
+                        hint="Belum dikirim"
+                    />
+                    <StatCard
+                        icon={Gauge}
+                        tone="violet"
+                        label="Rata-rata Nilai"
+                        value={
+                            stats.average === null
+                                ? '—'
+                                : stats.average.toFixed(2)
+                        }
+                        hint="Dari yang terkirim"
+                    />
+                </div>
 
-                <DataTable
+                <DataTableCard
                     columns={columns}
                     page={assessments}
                     state={table}
                     onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada penilaian."
-                />
-
-                <DataTablePagination
-                    page={assessments}
                     onPageChange={goToPage}
                     onPerPageChange={setPerPage}
+                    rowKey={(row) => row.id}
+                    search={search}
+                    onSearchChange={setSearch}
+                    searchPlaceholder="Cari nama siswa atau NIS..."
+                    emptyMessage="Belum ada penilaian."
+                    filters={
+                        <>
+                            <FilterSelect
+                                label="Filter jenis"
+                                allLabel="Semua jenis"
+                                value={table.filters.type ?? 'all'}
+                                onValueChange={(value) =>
+                                    filterBy('type', value)
+                                }
+                                options={types}
+                            />
+                            <FilterSelect
+                                label="Filter status"
+                                allLabel="Semua status"
+                                value={table.filters.state ?? 'all'}
+                                onValueChange={(value) =>
+                                    filterBy('state', value)
+                                }
+                                options={[
+                                    { value: 'draft', label: 'Draft' },
+                                    { value: 'submitted', label: 'Terkirim' },
+                                ]}
+                            />
+                        </>
+                    }
                 />
             </div>
         </AppLayout>

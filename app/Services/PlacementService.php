@@ -21,6 +21,30 @@ class PlacementService
     public const SORTABLE = ['start_date', 'end_date', 'status', 'created_at'];
 
     /**
+     * Totals for the overview cards, scoped to what the viewer may see. Enum values
+     * are code constants, so interpolating them into the aggregate is injection-safe.
+     *
+     * @return array{total: int, active: int, completed: int, draft: int}
+     */
+    public function stats(User $viewer): array
+    {
+        $counts = Placement::query()
+            ->visibleTo($viewer)
+            ->selectRaw('count(*) as total')
+            ->selectRaw("count(*) filter (where status = '".PlacementStatus::Active->value."') as active")
+            ->selectRaw("count(*) filter (where status = '".PlacementStatus::Completed->value."') as completed")
+            ->selectRaw("count(*) filter (where status = '".PlacementStatus::Draft->value."') as draft")
+            ->first();
+
+        return [
+            'total' => (int) ($counts?->getAttribute('total') ?? 0),
+            'active' => (int) ($counts?->getAttribute('active') ?? 0),
+            'completed' => (int) ($counts?->getAttribute('completed') ?? 0),
+            'draft' => (int) ($counts?->getAttribute('draft') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Placement>
      */
     public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator

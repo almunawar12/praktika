@@ -22,6 +22,29 @@ class JournalService
     public const SORTABLE = ['date', 'status', 'industry_status', 'teacher_status', 'created_at'];
 
     /**
+     * Totals for the overview cards, scoped to what the viewer may see.
+     *
+     * @return array{total: int, pending: int, approved: int, rejected: int}
+     */
+    public function stats(User $viewer): array
+    {
+        $counts = Journal::query()
+            ->visibleTo($viewer)
+            ->selectRaw('count(*) as total')
+            ->selectRaw("count(*) filter (where status = '".ReviewStatus::Pending->value."') as pending")
+            ->selectRaw("count(*) filter (where status = '".ReviewStatus::Approved->value."') as approved")
+            ->selectRaw("count(*) filter (where status = '".ReviewStatus::Rejected->value."') as rejected")
+            ->first();
+
+        return [
+            'total' => (int) ($counts?->getAttribute('total') ?? 0),
+            'pending' => (int) ($counts?->getAttribute('pending') ?? 0),
+            'approved' => (int) ($counts?->getAttribute('approved') ?? 0),
+            'rejected' => (int) ($counts?->getAttribute('rejected') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Journal>
      */
     public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator

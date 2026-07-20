@@ -1,9 +1,14 @@
 import { Link } from '@inertiajs/react';
-import { MapPin, Paperclip, Plus } from 'lucide-react';
-import { DataTable } from '@/components/data-table/data-table';
+import {
+    CalendarDays,
+    ClipboardList,
+    MapPin,
+    Paperclip,
+    Plus,
+} from 'lucide-react';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { DataTableCard } from '@/components/data-table/data-table-card';
+import { StatCard } from '@/components/shared/stat-card';
 import { Button } from '@/components/ui/button';
 import { useTableQuery } from '@/hooks/use-table-query';
 import AppLayout from '@/layouts/app-layout';
@@ -24,10 +29,18 @@ type Monitoring = {
     };
 };
 
+type Stats = {
+    total: number;
+    thisMonth: number;
+    withLocation: number;
+    withEvidence: number;
+};
+
 type Props = {
     monitorings: Paginated<Monitoring>;
     table: TableState;
     canCreate: boolean;
+    stats: Stats;
 };
 
 function formatDate(iso: string): string {
@@ -40,6 +53,7 @@ export default function MonitoringIndex({
     monitorings,
     table,
     canCreate,
+    stats,
 }: Props) {
     const { search, setSearch, sortBy, goToPage, setPerPage } = useTableQuery(
         '/monitorings',
@@ -47,6 +61,18 @@ export default function MonitoringIndex({
     );
 
     const columns: Column<Monitoring>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {monitorings.from !== null
+                        ? monitorings.from + index
+                        : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'visit_date',
             header: 'Tanggal',
@@ -120,8 +146,8 @@ export default function MonitoringIndex({
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-12',
+            header: 'Aksi',
+            className: 'w-20',
             cell: (row) => (
                 <Button variant="ghost" size="sm" asChild>
                     <Link href={`/monitorings/${row.id}`}>Detail</Link>
@@ -132,38 +158,63 @@ export default function MonitoringIndex({
 
     return (
         <AppLayout
-            title="Monitoring"
-            description="Laporan kunjungan guru pembimbing"
+            title="Monitoring Guru"
+            description="Laporan kunjungan guru pembimbing ke tempat PKL."
+            actions={
+                canCreate ? (
+                    <Button asChild>
+                        <Link href="/monitorings/create">
+                            <Plus className="size-4" aria-hidden="true" />
+                            Catat Kunjungan
+                        </Link>
+                    </Button>
+                ) : undefined
+            }
         >
-            <div className="flex flex-col gap-4">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari catatan, siswa, atau perusahaan..."
-                >
-                    {canCreate ? (
-                        <Button asChild>
-                            <Link href="/monitorings/create">
-                                <Plus className="size-4" aria-hidden="true" />
-                                Catat Kunjungan
-                            </Link>
-                        </Button>
-                    ) : null}
-                </DataTableToolbar>
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={ClipboardList}
+                        tone="blue"
+                        label="Total Kunjungan"
+                        value={stats.total}
+                        hint="Semua laporan"
+                    />
+                    <StatCard
+                        icon={CalendarDays}
+                        tone="green"
+                        label="Bulan Ini"
+                        value={stats.thisMonth}
+                        hint="Kunjungan bulan berjalan"
+                    />
+                    <StatCard
+                        icon={MapPin}
+                        tone="violet"
+                        label="Ada Lokasi"
+                        value={stats.withLocation}
+                        hint="Titik kunjungan terekam"
+                    />
+                    <StatCard
+                        icon={Paperclip}
+                        tone="amber"
+                        label="Ada Dokumentasi"
+                        value={stats.withEvidence}
+                        hint="Dilampiri bukti"
+                    />
+                </div>
 
-                <DataTable
+                <DataTableCard
                     columns={columns}
                     page={monitorings}
                     state={table}
                     onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada laporan kunjungan."
-                />
-
-                <DataTablePagination
-                    page={monitorings}
                     onPageChange={goToPage}
                     onPerPageChange={setPerPage}
+                    rowKey={(row) => row.id}
+                    search={search}
+                    onSearchChange={setSearch}
+                    searchPlaceholder="Cari catatan, siswa, atau perusahaan..."
+                    emptyMessage="Belum ada laporan kunjungan."
                 />
             </div>
         </AppLayout>

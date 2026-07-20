@@ -1,10 +1,11 @@
 import { Link } from '@inertiajs/react';
+import { Award, CircleCheck, Clock, Gauge } from 'lucide-react';
 import { GradeBadge } from '@/components/assessment/grade-badge';
 import type { Grade } from '@/components/assessment/grade-badge';
-import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { DataTableCard } from '@/components/data-table/data-table-card';
+import { FilterSelect } from '@/components/data-table/filter-select';
+import { StatCard } from '@/components/shared/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTableQuery } from '@/hooks/use-table-query';
@@ -25,17 +26,35 @@ type Score = {
     };
 };
 
+type Stats = {
+    total: number;
+    published: number;
+    draft: number;
+    average: number | null;
+};
+
 type Props = {
     scores: Paginated<Score>;
     table: TableState;
     can: { publish: boolean; calculate: boolean };
+    stats: Stats;
 };
 
-export default function FinalScoreIndex({ scores, table }: Props) {
+export default function FinalScoreIndex({ scores, table, stats }: Props) {
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
         useTableQuery('/final-scores', table);
 
     const columns: Column<Score>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {scores.from !== null ? scores.from + index : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'student',
             header: 'Siswa',
@@ -103,8 +122,8 @@ export default function FinalScoreIndex({ scores, table }: Props) {
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-12',
+            header: 'Aksi',
+            className: 'w-20',
             cell: (row) => (
                 <Button variant="ghost" size="sm" asChild>
                     <Link href={`/final-scores/${row.id}`}>Detail</Link>
@@ -114,48 +133,89 @@ export default function FinalScoreIndex({ scores, table }: Props) {
     ];
 
     return (
-        <AppLayout title="Nilai Akhir" description="Hasil akhir PKL">
-            <div className="flex flex-col gap-4">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari nama siswa atau NIS..."
-                    filters={[
-                        {
-                            key: 'grade',
-                            label: 'Grade',
-                            value: table.filters.grade ?? 'all',
-                            options: ['A', 'B', 'C', 'D', 'E'].map((g) => ({
-                                value: g,
-                                label: g,
-                            })),
-                        },
-                        {
-                            key: 'state',
-                            label: 'Publikasi',
-                            value: table.filters.state ?? 'all',
-                            options: [
-                                { value: 'published', label: 'Dipublikasikan' },
-                                { value: 'draft', label: 'Belum' },
-                            ],
-                        },
-                    ]}
-                    onFilterChange={filterBy}
-                />
+        <AppLayout
+            title="Nilai Akhir"
+            description="Hasil akhir PKL siswa dari gabungan nilai industri dan guru."
+        >
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={Award}
+                        tone="blue"
+                        label="Total Nilai"
+                        value={stats.total}
+                        hint="Semua nilai akhir"
+                    />
+                    <StatCard
+                        icon={CircleCheck}
+                        tone="green"
+                        label="Dipublikasikan"
+                        value={stats.published}
+                        hint="Terlihat siswa"
+                    />
+                    <StatCard
+                        icon={Clock}
+                        tone="amber"
+                        label="Belum Terbit"
+                        value={stats.draft}
+                        hint="Masih draft"
+                    />
+                    <StatCard
+                        icon={Gauge}
+                        tone="violet"
+                        label="Rata-rata Nilai"
+                        value={
+                            stats.average === null
+                                ? '—'
+                                : stats.average.toFixed(2)
+                        }
+                        hint="Seluruh siswa"
+                    />
+                </div>
 
-                <DataTable
+                <DataTableCard
                     columns={columns}
                     page={scores}
                     state={table}
                     onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada nilai akhir."
-                />
-
-                <DataTablePagination
-                    page={scores}
                     onPageChange={goToPage}
                     onPerPageChange={setPerPage}
+                    rowKey={(row) => row.id}
+                    search={search}
+                    onSearchChange={setSearch}
+                    searchPlaceholder="Cari nama siswa atau NIS..."
+                    emptyMessage="Belum ada nilai akhir."
+                    filters={
+                        <>
+                            <FilterSelect
+                                label="Filter grade"
+                                allLabel="Semua grade"
+                                value={table.filters.grade ?? 'all'}
+                                onValueChange={(value) =>
+                                    filterBy('grade', value)
+                                }
+                                options={['A', 'B', 'C', 'D', 'E'].map((g) => ({
+                                    value: g,
+                                    label: g,
+                                }))}
+                            />
+                            <FilterSelect
+                                label="Filter publikasi"
+                                allLabel="Semua publikasi"
+                                value={table.filters.state ?? 'all'}
+                                onValueChange={(value) =>
+                                    filterBy('state', value)
+                                }
+                                options={[
+                                    {
+                                        value: 'published',
+                                        label: 'Dipublikasikan',
+                                    },
+                                    { value: 'draft', label: 'Belum' },
+                                ]}
+                            />
+                        </>
+                    }
                 />
             </div>
         </AppLayout>

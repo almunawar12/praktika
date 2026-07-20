@@ -32,6 +32,35 @@ class MonitoringService
     public const VISITABLE = [PlacementStatus::Active, PlacementStatus::Completed];
 
     /**
+     * Totals for the overview cards, scoped to what the viewer may see. Monitoring
+     * has no status of its own, so the cards report coverage instead.
+     *
+     * @return array{total: int, thisMonth: int, withLocation: int, withEvidence: int}
+     */
+    public function stats(User $viewer): array
+    {
+        $counts = Monitoring::query()
+            ->visibleTo($viewer)
+            ->selectRaw('count(*) as total')
+            ->selectRaw("count(*) filter (where date_trunc('month', visit_date) = date_trunc('month', current_date)) as this_month")
+            ->selectRaw('count(*) filter (where latitude is not null) as with_location')
+            ->first();
+
+        // Counted through the relation so the polymorphic type resolves correctly.
+        $withEvidence = Monitoring::query()
+            ->visibleTo($viewer)
+            ->whereHas('attachments')
+            ->count();
+
+        return [
+            'total' => (int) ($counts?->getAttribute('total') ?? 0),
+            'thisMonth' => (int) ($counts?->getAttribute('this_month') ?? 0),
+            'withLocation' => (int) ($counts?->getAttribute('with_location') ?? 0),
+            'withEvidence' => $withEvidence,
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Monitoring>
      */
     public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator

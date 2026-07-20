@@ -37,6 +37,7 @@ class PlacementController extends Controller
             'statuses' => $this->statusOptions(),
             'companies' => $this->companyOptions(),
             'teachers' => $this->teacherOptions(),
+            'stats' => $this->placements->stats($request->user()),
         ]);
     }
 

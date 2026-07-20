@@ -28,6 +28,29 @@ class AttendanceService
     public function __construct(private readonly GeolocationService $geo) {}
 
     /**
+     * Totals for the overview cards, scoped to what the viewer may see.
+     *
+     * @return array{total: int, verified: int, pending: int, rejected: int}
+     */
+    public function stats(User $viewer): array
+    {
+        $counts = Attendance::query()
+            ->visibleTo($viewer)
+            ->selectRaw('count(*) as total')
+            ->selectRaw("count(*) filter (where verification_status = '".VerificationStatus::Verified->value."') as verified")
+            ->selectRaw("count(*) filter (where verification_status = '".VerificationStatus::Pending->value."') as pending")
+            ->selectRaw("count(*) filter (where verification_status = '".VerificationStatus::Rejected->value."') as rejected")
+            ->first();
+
+        return [
+            'total' => (int) ($counts?->getAttribute('total') ?? 0),
+            'verified' => (int) ($counts?->getAttribute('verified') ?? 0),
+            'pending' => (int) ($counts?->getAttribute('pending') ?? 0),
+            'rejected' => (int) ($counts?->getAttribute('rejected') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Attendance>
      */
     public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator

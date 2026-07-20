@@ -29,6 +29,32 @@ class AssessmentService
     public const ASSESSABLE = [PlacementStatus::Active, PlacementStatus::Completed];
 
     /**
+     * Totals for the overview cards, scoped to what the viewer may see.
+     *
+     * @return array{total: int, submitted: int, draft: int, average: float|null}
+     */
+    public function stats(User $viewer): array
+    {
+        $counts = Assessment::query()
+            ->visibleTo($viewer)
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where submitted_at is not null) as submitted')
+            ->selectRaw('avg(average_score) filter (where submitted_at is not null) as average')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $submitted = (int) ($counts?->getAttribute('submitted') ?? 0);
+        $average = $counts?->getAttribute('average');
+
+        return [
+            'total' => $total,
+            'submitted' => $submitted,
+            'draft' => $total - $submitted,
+            'average' => $average === null ? null : round((float) $average, 2),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Assessment>
      */
     public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator

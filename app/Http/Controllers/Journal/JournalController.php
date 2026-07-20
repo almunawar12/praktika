@@ -44,6 +44,7 @@ class JournalController extends Controller
                 'reviewAsIndustry' => $request->user()->can('journals.reviewAsIndustry'),
                 'reviewAsTeacher' => $request->user()->can('journals.reviewAsTeacher'),
             ],
+            'stats' => $this->journals->stats($request->user()),
         ]);
     }
 

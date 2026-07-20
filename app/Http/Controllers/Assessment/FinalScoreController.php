@@ -48,12 +48,29 @@ class FinalScoreController extends Controller
             ->paginate($table->perPage)
             ->withQueryString();
 
+        $counts = FinalScore::query()
+            ->visibleTo($user)
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where published_at is not null) as published')
+            ->selectRaw('avg(final_score) as average')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $published = (int) ($counts?->getAttribute('published') ?? 0);
+        $average = $counts?->getAttribute('average');
+
         return Inertia::render('final-scores/index', [
             'scores' => $scores,
             'table' => $table->toArray(),
             'can' => [
                 'publish' => $user->can('final-scores.publish'),
                 'calculate' => $user->can('final-scores.calculate'),
+            ],
+            'stats' => [
+                'total' => $total,
+                'published' => $published,
+                'draft' => $total - $published,
+                'average' => $average === null ? null : round((float) $average, 2),
             ],
         ]);
     }

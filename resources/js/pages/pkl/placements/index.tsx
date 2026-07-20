@@ -1,9 +1,16 @@
-import { Plus, Trash2 } from 'lucide-react';
+import {
+    CheckCircle2,
+    FilePen,
+    MapPin,
+    PlayCircle,
+    Plus,
+    Search,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { TablePager } from '@/components/data-table/table-pager';
 import {
     PlacementDetail,
     type PlacementDetailData,
@@ -19,7 +26,17 @@ import type { PlacementStatus } from '@/components/pkl/placement-status-badge';
 import { DeleteDialog } from '@/components/shared/delete-dialog';
 import { DetailModal } from '@/components/shared/detail-modal';
 import { FormModal } from '@/components/shared/form-modal';
+import { StatCard } from '@/components/shared/stat-card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { usePermission } from '@/hooks/use-permission';
 import { useResource } from '@/hooks/use-resource';
 import { useTableQuery } from '@/hooks/use-table-query';
@@ -45,15 +62,25 @@ type Placement = {
     teacher: { id: string; name: string };
 };
 
+type Stats = {
+    total: number;
+    active: number;
+    completed: number;
+    draft: number;
+};
+
 type Props = {
     placements: Paginated<Placement>;
     table: TableState;
     statuses: SelectOption[];
     companies: SelectOption[];
     teachers: SelectOption[];
+    stats: Stats;
 };
 
 type Modal = { mode: 'create' | 'edit' | 'detail'; id?: string } | null;
+
+const PER_PAGE_OPTIONS = ['10', '15', '25', '50'];
 
 function formatDate(iso: string): string {
     return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(
@@ -67,6 +94,7 @@ export default function PlacementIndex({
     statuses,
     companies,
     teachers,
+    stats,
 }: Props) {
     const { can } = usePermission();
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
@@ -95,6 +123,18 @@ export default function PlacementIndex({
     const close = () => setModal(null);
 
     const columns: Column<Placement>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {placements.from !== null
+                        ? placements.from + index
+                        : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'student',
             header: 'Siswa',
@@ -145,8 +185,8 @@ export default function PlacementIndex({
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-12',
+            header: 'Aksi',
+            className: 'w-20',
             cell: (row) => (
                 <Button
                     variant="ghost"
@@ -162,57 +202,161 @@ export default function PlacementIndex({
     return (
         <AppLayout
             title="Penempatan PKL"
-            description="Kelola penempatan siswa ke perusahaan"
+            description="Kelola penempatan siswa ke perusahaan beserta status PKL-nya."
+            actions={
+                can('placements.create') ? (
+                    <Button onClick={() => setModal({ mode: 'create' })}>
+                        <Plus className="size-4" aria-hidden="true" />
+                        Tambah Penempatan
+                    </Button>
+                ) : undefined
+            }
         >
-            <div className="flex flex-col gap-4">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari siswa, NIS, perusahaan, atau guru..."
-                    filters={[
-                        {
-                            key: 'status',
-                            label: 'Status',
-                            value: table.filters.status ?? 'all',
-                            options: statuses,
-                        },
-                        {
-                            key: 'company_id',
-                            label: 'Perusahaan',
-                            value: table.filters.company_id ?? 'all',
-                            options: companies,
-                        },
-                        {
-                            key: 'teacher_id',
-                            label: 'Guru',
-                            value: table.filters.teacher_id ?? 'all',
-                            options: teachers,
-                        },
-                    ]}
-                    onFilterChange={filterBy}
-                >
-                    {can('placements.create') ? (
-                        <Button onClick={() => setModal({ mode: 'create' })}>
-                            <Plus className="size-4" aria-hidden="true" />
-                            Tambah Penempatan
-                        </Button>
-                    ) : null}
-                </DataTableToolbar>
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={MapPin}
+                        tone="blue"
+                        label="Total Penempatan"
+                        value={stats.total}
+                        hint="Semua penempatan"
+                    />
+                    <StatCard
+                        icon={PlayCircle}
+                        tone="green"
+                        label="Aktif"
+                        value={stats.active}
+                        hint="Sedang berjalan"
+                    />
+                    <StatCard
+                        icon={CheckCircle2}
+                        tone="violet"
+                        label="Selesai"
+                        value={stats.completed}
+                        hint="PKL rampung"
+                    />
+                    <StatCard
+                        icon={FilePen}
+                        tone="amber"
+                        label="Draft"
+                        value={stats.draft}
+                        hint="Belum diaktifkan"
+                    />
+                </div>
 
-                <DataTable
-                    columns={columns}
-                    page={placements}
-                    state={table}
-                    onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada penempatan."
-                />
+                <Card>
+                    <CardContent className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Select
+                                    value={String(placements.per_page)}
+                                    onValueChange={setPerPage}
+                                >
+                                    <SelectTrigger
+                                        className="w-[72px]"
+                                        aria-label="Jumlah baris per halaman"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {PER_PAGE_OPTIONS.map((option) => (
+                                            <SelectItem
+                                                key={option}
+                                                value={option}
+                                            >
+                                                {option}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                data per halaman
+                            </div>
 
-                <DataTablePagination
-                    page={placements}
-                    onPageChange={goToPage}
-                    onPerPageChange={setPerPage}
-                />
+                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                                <Select
+                                    value={table.filters.status ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('status', value)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        className="sm:w-40"
+                                        aria-label="Filter status"
+                                    >
+                                        <SelectValue placeholder="Semua status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua status
+                                        </SelectItem>
+                                        {statuses.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={table.filters.company_id ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('company_id', value)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        className="sm:w-44"
+                                        aria-label="Filter perusahaan"
+                                    >
+                                        <SelectValue placeholder="Semua perusahaan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua perusahaan
+                                        </SelectItem>
+                                        {companies.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="relative sm:w-60">
+                                    <Search
+                                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <Input
+                                        value={search}
+                                        onChange={(event) =>
+                                            setSearch(event.target.value)
+                                        }
+                                        placeholder="Cari siswa, NIS, perusahaan..."
+                                        className="pl-9"
+                                        aria-label="Cari penempatan"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <DataTable
+                            columns={columns}
+                            page={placements}
+                            state={table}
+                            onSort={sortBy}
+                            rowKey={(row) => row.id}
+                            emptyMessage="Belum ada penempatan."
+                        />
+
+                        <TablePager page={placements} onPageChange={goToPage} />
+                    </CardContent>
+                </Card>
             </div>
 
             {modal?.mode === 'create' && options.data ? (

@@ -35,6 +35,30 @@ class UserService
     public const ASSIGNABLE = [RoleName::SuperAdmin, RoleName::AdminPkl];
 
     /**
+     * Totals for the overview cards.
+     *
+     * @return array{total: int, active: int, inactive: int, loggedIn: int}
+     */
+    public function stats(): array
+    {
+        $counts = User::query()
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where is_active) as active')
+            ->selectRaw('count(*) filter (where last_login_at is not null) as logged_in')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $active = (int) ($counts?->getAttribute('active') ?? 0);
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
+            'loggedIn' => (int) ($counts?->getAttribute('logged_in') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, User>
      */
     public function paginate(TableRequest $table): LengthAwarePaginator
