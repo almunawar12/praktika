@@ -49,12 +49,25 @@ class ActivityController extends Controller
                 'created_at' => $activity->created_at?->toIso8601String(),
             ]);
 
+        $counts = Activity::query()
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where created_at::date = current_date) as today')
+            ->selectRaw("count(*) filter (where created_at >= current_date - interval '6 days') as week")
+            ->selectRaw('count(distinct causer_id) as contributors')
+            ->first();
+
         return Inertia::render('system/activity/index', [
             'activities' => $activities,
             'table' => $table->toArray(),
             'filterOptions' => [
                 'logNames' => Activity::query()->distinct()->orderBy('log_name')->pluck('log_name')->filter()->values(),
                 'events' => Activity::query()->whereNotNull('event')->distinct()->orderBy('event')->pluck('event')->values(),
+            ],
+            'stats' => [
+                'total' => (int) ($counts?->getAttribute('total') ?? 0),
+                'today' => (int) ($counts?->getAttribute('today') ?? 0),
+                'week' => (int) ($counts?->getAttribute('week') ?? 0),
+                'contributors' => (int) ($counts?->getAttribute('contributors') ?? 0),
             ],
         ]);
     }
