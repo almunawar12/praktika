@@ -12,6 +12,7 @@ use App\Http\Requests\System\StoreUserRequest;
 use App\Http\Requests\System\UpdateUserRequest;
 use App\Models\User;
 use App\Services\UserService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -31,21 +32,14 @@ class UserController extends Controller
             'users' => $this->users->paginate($table)->through(fn (User $user): array => $this->row($user)),
             'table' => $table->toArray(),
             'roles' => $this->roleOptions(RoleName::cases()),
-        ]);
-    }
-
-    public function create(): Response
-    {
-        $this->authorize('create', User::class);
-
-        return Inertia::render('system/users/create', [
-            'roles' => $this->roleOptions(UserService::ASSIGNABLE),
+            // Roles this screen may hand out — the create/edit modal pickers.
+            'assignableRoles' => $this->roleOptions(UserService::ASSIGNABLE),
         ]);
     }
 
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        $user = $this->users->create(new UserData(
+        $this->users->create(new UserData(
             name: $request->string('name')->toString(),
             email: $request->string('email')->toString(),
             phone: $request->filled('phone') ? $request->string('phone')->toString() : null,
@@ -55,28 +49,31 @@ class UserController extends Controller
         ));
 
         return redirect()
-            ->route('system.users.edit', $user)
+            ->route('system.users.index')
             ->with('success', 'Pengguna dibuat.');
     }
 
-    public function edit(Request $request, User $user): Response
+    public function edit(Request $request, User $user): JsonResponse
     {
         $this->authorize('update', $user);
 
         $actor = $request->user();
 
-        return Inertia::render('system/users/edit', [
-            'user' => [
-                ...$this->row($user),
-                'phone' => $user->phone,
-            ],
-            'roles' => $this->roleOptions(UserService::ASSIGNABLE),
-            'hasProfile' => $this->users->hasProfile($user),
-            'can' => [
-                'delete' => $actor->can('delete', $user),
-                'toggleStatus' => $actor->can('toggleStatus', $user),
-                'resetPassword' => $actor->can('resetPassword', $user),
-                'impersonate' => $actor->can('impersonate', $user),
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => [
+                'user' => [
+                    ...$this->row($user),
+                    'phone' => $user->phone,
+                ],
+                'hasProfile' => $this->users->hasProfile($user),
+                'can' => [
+                    'delete' => $actor->can('delete', $user),
+                    'toggleStatus' => $actor->can('toggleStatus', $user),
+                    'resetPassword' => $actor->can('resetPassword', $user),
+                    'impersonate' => $actor->can('impersonate', $user),
+                ],
             ],
         ]);
     }
@@ -92,7 +89,9 @@ class UserController extends Controller
             password: null,
         ));
 
-        return back()->with('success', 'Pengguna diperbarui.');
+        return redirect()
+            ->route('system.users.index')
+            ->with('success', 'Pengguna diperbarui.');
     }
 
     public function destroy(User $user): RedirectResponse

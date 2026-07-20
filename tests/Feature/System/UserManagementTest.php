@@ -35,6 +35,38 @@ test('a super admin creates a staff account with a role', function (): void {
         ->and($user->is_active)->toBeTrue();
 });
 
+test('edit returns json with user, hasProfile and abilities for the modal', function (): void {
+    $admin = userWithRole(RoleName::SuperAdmin);
+    $target = userWithRole(RoleName::AdminPkl);
+
+    $this->actingAs($admin)
+        ->getJson("/system/users/{$target->id}/edit")
+        ->assertOk()
+        ->assertJsonPath('data.user.id', $target->id)
+        ->assertJsonStructure(['data' => ['user' => ['id', 'name', 'email', 'phone', 'role'], 'hasProfile', 'can' => ['delete', 'toggleStatus', 'resetPassword', 'impersonate']]]);
+});
+
+test('the user create page route is removed', function (): void {
+    // With both `create` and `show` gone, no GET route matches this path — only the
+    // PUT/DELETE {user} routes do, so the method is not allowed.
+    $this->actingAs(userWithRole(RoleName::SuperAdmin))
+        ->get('/system/users/create')
+        ->assertStatus(405);
+});
+
+test('creating a user redirects to the index', function (): void {
+    $this->actingAs(userWithRole(RoleName::SuperAdmin))
+        ->post('/system/users', [
+            'name' => 'Citra',
+            'email' => 'citra@sekolah.test',
+            'is_active' => true,
+            'role' => RoleName::AdminPkl->value,
+            'password' => 'rahasia-kuat-123',
+            'password_confirmation' => 'rahasia-kuat-123',
+        ])
+        ->assertRedirect('/system/users');
+});
+
 test('this screen refuses to grant a profile-backed role', function (): void {
     // Siswa/Guru accounts are born from their own modules with their profile row;
     // minting one here would leave a user with no student record.

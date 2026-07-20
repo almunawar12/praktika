@@ -23,7 +23,7 @@ Route::middleware('auth')->prefix('system')->name('system.')->group(function ():
         ->name('impersonation.destroy');
 
     Route::middleware('can:users.viewAny')->group(function (): void {
-        Route::resource('users', UserController::class)->except('show');
+        Route::resource('users', UserController::class)->except(['show', 'create']);
 
         Route::put('users/{user}/status', [UserModerationController::class, 'toggleStatus'])
             ->name('users.status');
