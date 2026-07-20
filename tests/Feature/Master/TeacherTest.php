@@ -32,6 +32,37 @@ test('creating a teacher also creates a guru login account', function (): void {
         ->and($user->is_active)->toBeTrue();
 });
 
+test('show and edit return json for the modal', function (): void {
+    $teacher = Teacher::factory()->create(['nip' => '123']);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/teachers/{$teacher->id}")
+        ->assertOk()
+        ->assertJsonPath('data.nip', '123')
+        ->assertJsonPath('data.user.email', $teacher->user->email);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/teachers/{$teacher->id}/edit")
+        ->assertOk()
+        ->assertJsonPath('data.id', $teacher->id);
+});
+
+test('the teacher create page route is removed', function (): void {
+    $this->actingAs($this->admin)->get('/master/teachers/create')->assertNotFound();
+});
+
+test('teacher create and update redirect to the index', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/master/teachers', teacherPayload())
+        ->assertRedirect('/master/teachers');
+
+    $teacher = Teacher::firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->put("/master/teachers/{$teacher->id}", teacherPayload(['name' => 'Baru']))
+        ->assertRedirect('/master/teachers');
+});
+
 test('a failed teacher create leaves no orphan user behind', function (): void {
     User::factory()->create(['email' => 'taken@praktika.test']);
     $usersBefore = User::count();

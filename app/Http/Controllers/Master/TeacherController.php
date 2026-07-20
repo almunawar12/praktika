@@ -11,6 +11,7 @@ use App\Http\Requests\Master\StoreTeacherRequest;
 use App\Http\Requests\Master\UpdateTeacherRequest;
 use App\Models\Teacher;
 use App\Services\TeacherService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -33,41 +34,38 @@ class TeacherController extends Controller
         ]);
     }
 
-    public function create(): Response
-    {
-        $this->authorize('create', Teacher::class);
-
-        return Inertia::render('master/teachers/create');
-    }
-
     public function store(StoreTeacherRequest $request): RedirectResponse
     {
-        $teacher = $this->teachers->create(TeacherData::fromRequest($request));
+        $this->teachers->create(TeacherData::fromRequest($request));
 
         return redirect()
-            ->route('master.teachers.show', $teacher)
+            ->route('master.teachers.index')
             ->with('success', 'Guru berhasil ditambahkan. Akun login dibuat — minta guru melakukan reset kata sandi untuk mengaktifkannya.');
     }
 
-    public function show(Teacher $teacher): Response
+    public function show(Teacher $teacher): JsonResponse
     {
         $this->authorize('view', $teacher);
 
         $teacher->load('user:id,email,is_active,last_login_at');
 
-        return Inertia::render('master/teachers/show', [
-            'teacher' => $teacher,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $teacher,
         ]);
     }
 
-    public function edit(Teacher $teacher): Response
+    public function edit(Teacher $teacher): JsonResponse
     {
         $this->authorize('update', $teacher);
 
         $teacher->load('user:id,email');
 
-        return Inertia::render('master/teachers/edit', [
-            'teacher' => $teacher,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $teacher,
         ]);
     }
 
@@ -76,7 +74,7 @@ class TeacherController extends Controller
         $this->teachers->update($teacher, TeacherData::fromRequest($request));
 
         return redirect()
-            ->route('master.teachers.show', $teacher)
+            ->route('master.teachers.index')
             ->with('success', 'Guru berhasil diperbarui.');
     }
 
