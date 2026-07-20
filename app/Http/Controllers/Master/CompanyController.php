@@ -10,6 +10,7 @@ use App\Http\Requests\Master\StoreCompanyRequest;
 use App\Http\Requests\Master\UpdateCompanyRequest;
 use App\Models\Company;
 use App\Services\CompanyService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -32,37 +33,34 @@ class CompanyController extends Controller
         ]);
     }
 
-    public function create(): Response
-    {
-        $this->authorize('create', Company::class);
-
-        return Inertia::render('master/companies/create');
-    }
-
     public function store(StoreCompanyRequest $request): RedirectResponse
     {
-        $company = $this->companies->create($request->validated());
+        $this->companies->create($request->validated());
 
         return redirect()
-            ->route('master.companies.show', $company)
+            ->route('master.companies.index')
             ->with('success', 'Perusahaan berhasil ditambahkan.');
     }
 
-    public function show(Company $company): Response
+    public function show(Company $company): JsonResponse
     {
         $this->authorize('view', $company);
 
-        return Inertia::render('master/companies/show', [
-            'company' => $company,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $company,
         ]);
     }
 
-    public function edit(Company $company): Response
+    public function edit(Company $company): JsonResponse
     {
         $this->authorize('update', $company);
 
-        return Inertia::render('master/companies/edit', [
-            'company' => $company,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $company,
         ]);
     }
 
@@ -71,7 +69,7 @@ class CompanyController extends Controller
         $this->companies->update($company, $request->validated());
 
         return redirect()
-            ->route('master.companies.show', $company)
+            ->route('master.companies.index')
             ->with('success', 'Perusahaan berhasil diperbarui.');
     }
 

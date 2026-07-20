@@ -30,6 +30,7 @@ Route::middleware('auth')->prefix('master')->name('master.')->group(function ():
         ->middleware('can:teachers.viewAny');
 
     Route::resource('companies', CompanyController::class)
+        ->except('create')
         ->middleware('can:companies.viewAny');
 
     Route::resource('students', StudentController::class)
