@@ -23,7 +23,13 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('auth')->prefix('pkl')->name('pkl.')->group(function (): void {
+    // Distinct path so it is not swallowed by the resource's placements/{placement}.
+    Route::get('placement-options', [PlacementController::class, 'options'])
+        ->middleware('can:placements.viewAny')
+        ->name('placements.options');
+
     Route::resource('placements', PlacementController::class)
+        ->except('create')
         ->middleware('can:placements.viewAny');
 
     Route::middleware('can:placements.viewAny')->group(function (): void {

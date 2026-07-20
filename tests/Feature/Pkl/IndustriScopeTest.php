@@ -86,7 +86,7 @@ test('a supervisor still can not create or transition placements', function (): 
     $placement = Placement::factory()->create(['company_id' => $this->company->id]);
 
     // Placement is the school's decision, not the company's.
-    $this->actingAs($this->supervisor->user)->get('/pkl/placements/create')->assertForbidden();
+    $this->actingAs($this->supervisor->user)->post('/pkl/placements')->assertForbidden();
     $this->actingAs($this->supervisor->user)
         ->put("/pkl/placements/{$placement->id}/activate")
         ->assertForbidden();

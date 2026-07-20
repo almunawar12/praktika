@@ -1,10 +1,7 @@
-import { Form, Link } from '@inertiajs/react';
-import { Info, LoaderCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Info } from 'lucide-react';
 import { Field } from '@/components/shared/field';
+import type { FieldsProps } from '@/components/shared/form-modal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -16,7 +13,6 @@ import {
 import type { SelectOption } from '@/types/table';
 
 export type PlacementValues = {
-    id?: string;
     student_id: string;
     company_id: string;
     teacher_id: string;
@@ -24,17 +20,17 @@ export type PlacementValues = {
     end_date: string;
 };
 
-type Props = {
-    action: string;
-    method: 'post' | 'put';
+export type PlacementFormOptions = {
     students: SelectOption[];
     companies: SelectOption[];
     teachers: SelectOption[];
-    values?: PlacementValues;
-    submitLabel: string;
 };
 
-/** Radix Select is not a native input, so its value is mirrored into a hidden field. */
+type Props = FieldsProps<PlacementValues> & {
+    options: PlacementFormOptions;
+    mode: 'create' | 'edit';
+};
+
 function SelectField({
     id,
     label,
@@ -44,7 +40,7 @@ function SelectField({
     error,
     placeholder,
 }: {
-    id: string;
+    id: keyof PlacementValues;
     label: string;
     options: SelectOption[];
     value: string;
@@ -54,7 +50,6 @@ function SelectField({
 }) {
     return (
         <Field id={id} label={label} error={error} required>
-            <input type="hidden" name={id} value={value} />
             <Select value={value} onValueChange={onChange}>
                 <SelectTrigger id={id} aria-invalid={Boolean(error)}>
                     <SelectValue placeholder={placeholder} />
@@ -71,128 +66,93 @@ function SelectField({
     );
 }
 
-export function PlacementForm({
-    action,
-    method,
-    students,
-    companies,
-    teachers,
-    values,
-    submitLabel,
+export function PlacementFields({
+    data,
+    setData,
+    errors,
+    options,
+    mode,
 }: Props) {
-    const [studentId, setStudentId] = useState(values?.student_id ?? '');
-    const [companyId, setCompanyId] = useState(values?.company_id ?? '');
-    const [teacherId, setTeacherId] = useState(values?.teacher_id ?? '');
-    const isCreate = method === 'post';
-
     return (
-        <Form action={action} method={method} className="max-w-3xl">
-            {({ processing, errors }) => (
-                <Card>
-                    <CardContent className="grid gap-4">
-                        {isCreate ? (
-                            <Alert>
-                                <Info className="size-4" aria-hidden="true" />
-                                <AlertDescription>
-                                    Penempatan dibuat sebagai{' '}
-                                    <strong>draft</strong>. Kuota perusahaan dan
-                                    aturan satu PKL aktif per siswa baru
-                                    diperiksa saat penempatan diaktifkan.
-                                </AlertDescription>
-                            </Alert>
-                        ) : null}
+        <>
+            {mode === 'create' ? (
+                <Alert>
+                    <Info className="size-4" aria-hidden="true" />
+                    <AlertDescription>
+                        Penempatan dibuat sebagai <strong>draft</strong>. Kuota
+                        perusahaan dan aturan satu PKL aktif per siswa baru
+                        diperiksa saat penempatan diaktifkan.
+                    </AlertDescription>
+                </Alert>
+            ) : null}
 
-                        <SelectField
-                            id="student_id"
-                            label="Siswa"
-                            options={students}
-                            value={studentId}
-                            onChange={setStudentId}
-                            error={errors.student_id}
-                            placeholder="Pilih siswa"
-                        />
+            <SelectField
+                id="student_id"
+                label="Siswa"
+                options={options.students}
+                value={data.student_id}
+                onChange={(value) => setData('student_id', value)}
+                error={errors.student_id}
+                placeholder="Pilih siswa"
+            />
 
-                        <SelectField
-                            id="company_id"
-                            label="Perusahaan"
-                            options={companies}
-                            value={companyId}
-                            onChange={setCompanyId}
-                            error={errors.company_id}
-                            placeholder="Pilih perusahaan"
-                        />
+            <SelectField
+                id="company_id"
+                label="Perusahaan"
+                options={options.companies}
+                value={data.company_id}
+                onChange={(value) => setData('company_id', value)}
+                error={errors.company_id}
+                placeholder="Pilih perusahaan"
+            />
 
-                        <SelectField
-                            id="teacher_id"
-                            label="Guru Pembimbing"
-                            options={teachers}
-                            value={teacherId}
-                            onChange={setTeacherId}
-                            error={errors.teacher_id}
-                            placeholder="Pilih guru pembimbing"
-                        />
+            <SelectField
+                id="teacher_id"
+                label="Guru Pembimbing"
+                options={options.teachers}
+                value={data.teacher_id}
+                onChange={(value) => setData('teacher_id', value)}
+                error={errors.teacher_id}
+                placeholder="Pilih guru pembimbing"
+            />
 
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <Field
-                                id="start_date"
-                                label="Tanggal Mulai"
-                                error={errors.start_date}
-                                required
-                            >
-                                <Input
-                                    id="start_date"
-                                    name="start_date"
-                                    type="date"
-                                    defaultValue={values?.start_date}
-                                    required
-                                    aria-invalid={Boolean(errors.start_date)}
-                                    aria-describedby={
-                                        errors.start_date
-                                            ? 'start_date-error'
-                                            : undefined
-                                    }
-                                />
-                            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                    id="start_date"
+                    label="Tanggal Mulai"
+                    error={errors.start_date}
+                    required
+                >
+                    <Input
+                        id="start_date"
+                        type="date"
+                        value={data.start_date}
+                        onChange={(event) =>
+                            setData('start_date', event.target.value)
+                        }
+                        required
+                        aria-invalid={Boolean(errors.start_date)}
+                    />
+                </Field>
 
-                            <Field
-                                id="end_date"
-                                label="Tanggal Selesai"
-                                error={errors.end_date}
-                                required
-                            >
-                                <Input
-                                    id="end_date"
-                                    name="end_date"
-                                    type="date"
-                                    defaultValue={values?.end_date}
-                                    required
-                                    aria-invalid={Boolean(errors.end_date)}
-                                    aria-describedby={
-                                        errors.end_date
-                                            ? 'end_date-error'
-                                            : undefined
-                                    }
-                                />
-                            </Field>
-                        </div>
-
-                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                            <Button variant="outline" asChild>
-                                <Link href="/pkl/placements">Batal</Link>
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing ? (
-                                    <LoaderCircle
-                                        className="size-4 animate-spin"
-                                        aria-hidden="true"
-                                    />
-                                ) : null}
-                                {submitLabel}
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-        </Form>
+                <Field
+                    id="end_date"
+                    label="Tanggal Selesai"
+                    error={errors.end_date}
+                    required
+                >
+                    <Input
+                        id="end_date"
+                        type="date"
+                        value={data.end_date}
+                        onChange={(event) =>
+                            setData('end_date', event.target.value)
+                        }
+                        required
+                        aria-invalid={Boolean(errors.end_date)}
+                    />
+                </Field>
+            </div>
+        </>
     );
 }

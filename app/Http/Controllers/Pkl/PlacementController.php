@@ -15,6 +15,7 @@ use App\Models\Placement;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\PlacementService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -39,27 +40,36 @@ class PlacementController extends Controller
         ]);
     }
 
-    public function create(): Response
+    /**
+     * Picker options for the create/edit modals. Kept off the index payload — the
+     * quota-aware company list runs a query per company and would reintroduce an
+     * N+1 on the paginated hot path — and fetched lazily when a modal opens.
+     */
+    public function options(): JsonResponse
     {
         $this->authorize('create', Placement::class);
 
-        return Inertia::render('pkl/placements/create', [
-            'students' => $this->studentOptions(),
-            'companies' => $this->companyOptions(withQuota: true),
-            'teachers' => $this->teacherOptions(),
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => [
+                'students' => $this->studentOptions(),
+                'companies' => $this->companyOptions(withQuota: true),
+                'teachers' => $this->teacherOptions(),
+            ],
         ]);
     }
 
     public function store(StorePlacementRequest $request): RedirectResponse
     {
-        $placement = $this->placements->create(PlacementData::fromRequest($request));
+        $this->placements->create(PlacementData::fromRequest($request));
 
         return redirect()
-            ->route('pkl.placements.show', $placement)
+            ->route('pkl.placements.index')
             ->with('success', 'Penempatan dibuat sebagai draft. Aktifkan untuk memulai PKL.');
     }
 
-    public function show(Request $request, Placement $placement): Response
+    public function show(Request $request, Placement $placement): JsonResponse
     {
         $this->authorize('view', $placement);
 
@@ -74,31 +84,34 @@ class PlacementController extends Controller
             'teacher.user:id,email',
         ]);
 
-        return Inertia::render('pkl/placements/show', [
-            'placement' => $placement,
-            'remainingQuota' => $this->placements->remainingQuota($placement->company),
-            // Resolved server-side: which transitions are offered depends on the
-            // placement's current status, not only on the user's permissions, so the
-            // frontend can not work this out from the shared permission list alone.
-            'can' => [
-                'update' => $user->can('update', $placement),
-                'delete' => $user->can('delete', $placement),
-                'activate' => $user->can('activate', $placement),
-                'complete' => $user->can('complete', $placement),
-                'cancel' => $user->can('cancel', $placement),
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => [
+                'placement' => $placement,
+                'remainingQuota' => $this->placements->remainingQuota($placement->company),
+                // Resolved server-side: which transitions are offered depends on the
+                // placement's current status, not only on the user's permissions, so the
+                // frontend can not work this out from the shared permission list alone.
+                'can' => [
+                    'update' => $user->can('update', $placement),
+                    'delete' => $user->can('delete', $placement),
+                    'activate' => $user->can('activate', $placement),
+                    'complete' => $user->can('complete', $placement),
+                    'cancel' => $user->can('cancel', $placement),
+                ],
             ],
         ]);
     }
 
-    public function edit(Placement $placement): Response
+    public function edit(Placement $placement): JsonResponse
     {
         $this->authorize('update', $placement);
 
-        return Inertia::render('pkl/placements/edit', [
-            'placement' => $placement,
-            'students' => $this->studentOptions(),
-            'companies' => $this->companyOptions(withQuota: true),
-            'teachers' => $this->teacherOptions(),
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $placement,
         ]);
     }
 
@@ -107,7 +120,7 @@ class PlacementController extends Controller
         $this->placements->update($placement, PlacementData::fromRequest($request));
 
         return redirect()
-            ->route('pkl.placements.show', $placement)
+            ->route('pkl.placements.index')
             ->with('success', 'Penempatan berhasil diperbarui.');
     }
 
