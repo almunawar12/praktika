@@ -87,7 +87,7 @@ export function FormModal<T extends Record<string, unknown>>({
                     onOpenChange(next);
                 }}
             >
-                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>{title}</DialogTitle>
                         {description ? (
