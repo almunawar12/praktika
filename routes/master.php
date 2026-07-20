@@ -22,6 +22,7 @@ Route::middleware('auth')->prefix('master')->name('master.')->group(function ():
 
     Route::resource('classes', SchoolClassController::class)
         ->parameters(['classes' => 'class'])
+        ->except('create')
         ->middleware('can:school-classes.viewAny');
 
     Route::resource('teachers', TeacherController::class)

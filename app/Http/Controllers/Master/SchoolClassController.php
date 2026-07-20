@@ -11,6 +11,7 @@ use App\Http\Requests\Master\UpdateSchoolClassRequest;
 use App\Models\Department;
 use App\Models\SchoolClass;
 use App\Services\SchoolClassService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -34,43 +35,39 @@ class SchoolClassController extends Controller
         ]);
     }
 
-    public function create(): Response
-    {
-        $this->authorize('create', SchoolClass::class);
-
-        return Inertia::render('master/classes/create', [
-            'departments' => $this->departmentOptions(),
-        ]);
-    }
-
     public function store(StoreSchoolClassRequest $request): RedirectResponse
     {
-        $class = $this->classes->create($request->validated());
+        $this->classes->create($request->validated());
 
         return redirect()
-            ->route('master.classes.show', $class)
+            ->route('master.classes.index')
             ->with('success', 'Kelas berhasil ditambahkan.');
     }
 
-    public function show(SchoolClass $class): Response
+    public function show(SchoolClass $class): JsonResponse
     {
         $this->authorize('view', $class);
 
         $class->load('department:id,code,name');
         $class->loadCount('students');
 
-        return Inertia::render('master/classes/show', [
-            'schoolClass' => $class,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $class,
         ]);
     }
 
-    public function edit(SchoolClass $class): Response
+    public function edit(SchoolClass $class): JsonResponse
     {
         $this->authorize('update', $class);
 
-        return Inertia::render('master/classes/edit', [
-            'schoolClass' => $class,
-            'departments' => $this->departmentOptions(),
+        $class->load('department:id,code,name');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $class,
         ]);
     }
 
@@ -79,7 +76,7 @@ class SchoolClassController extends Controller
         $this->classes->update($class, $request->validated());
 
         return redirect()
-            ->route('master.classes.show', $class)
+            ->route('master.classes.index')
             ->with('success', 'Kelas berhasil diperbarui.');
     }
 
