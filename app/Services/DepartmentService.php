@@ -7,6 +7,7 @@ namespace App\Services;
 use App\DataTransferObjects\TableRequest;
 use App\Exceptions\ResourceInUseException;
 use App\Models\Department;
+use App\Models\Student;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class DepartmentService
@@ -14,12 +15,35 @@ class DepartmentService
     public const SORTABLE = ['code', 'name', 'created_at'];
 
     /**
+     * Totals for the overview cards, computed in one aggregate pass.
+     *
+     * @return array{total: int, active: int, inactive: int, students: int}
+     */
+    public function stats(): array
+    {
+        $counts = Department::query()
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where is_active) as active')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $active = (int) ($counts?->getAttribute('active') ?? 0);
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
+            'students' => Student::query()->count(),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Department>
      */
     public function paginate(TableRequest $table): LengthAwarePaginator
     {
         return Department::query()
-            ->withCount('schoolClasses')
+            ->withCount(['schoolClasses', 'students'])
             ->when($table->search, function ($query, string $search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('name', 'ilike', "%{$search}%")

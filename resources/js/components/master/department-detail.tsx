@@ -5,7 +5,9 @@ export type DepartmentRecord = {
     id: string;
     code: string;
     name: string;
+    is_active: boolean;
     school_classes_count: number;
+    students_count: number;
     school_classes: { id: string; name: string }[];
 };
 
@@ -17,8 +19,18 @@ export function DepartmentDetail({ record }: { record: DepartmentRecord }) {
                     <Badge variant="outline">{record.code}</Badge>
                 </DetailItem>
                 <DetailItem label="Nama">{record.name}</DetailItem>
+                <DetailItem label="Status">
+                    {record.is_active ? (
+                        <Badge variant="secondary">Aktif</Badge>
+                    ) : (
+                        <Badge variant="outline">Nonaktif</Badge>
+                    )}
+                </DetailItem>
                 <DetailItem label="Jumlah Kelas">
                     {record.school_classes_count}
+                </DetailItem>
+                <DetailItem label="Jumlah Siswa">
+                    {record.students_count}
                 </DetailItem>
             </dl>
 

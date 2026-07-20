@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { GraduationCap, Menu, UserCog } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { PropsWithChildren } from 'react';
+import type { PropsWithChildren, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { UserMenu } from '@/components/layout/user-menu';
@@ -19,6 +19,8 @@ type AppLayoutProps = PropsWithChildren<{
     /** Browser-tab title when it should differ from the page heading. */
     headTitle?: string;
     description?: string;
+    /** Optional controls shown on the right of the page heading (e.g. a primary action). */
+    actions?: ReactNode;
 }>;
 
 function Brand() {
@@ -36,6 +38,7 @@ export default function AppLayout({
     title,
     headTitle,
     description,
+    actions,
     children,
 }: AppLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -116,14 +119,19 @@ export default function AppLayout({
                 </header>
 
                 <main className="p-4 md:p-6">
-                    <div className="mb-6 flex flex-col gap-1">
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                            {title}
-                        </h1>
-                        {description ? (
-                            <p className="text-sm text-muted-foreground">
-                                {description}
-                            </p>
+                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-col gap-1">
+                            <h1 className="text-2xl font-semibold tracking-tight">
+                                {title}
+                            </h1>
+                            {description ? (
+                                <p className="max-w-2xl text-sm text-muted-foreground">
+                                    {description}
+                                </p>
+                            ) : null}
+                        </div>
+                        {actions ? (
+                            <div className="shrink-0">{actions}</div>
                         ) : null}
                     </div>
 

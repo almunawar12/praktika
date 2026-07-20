@@ -1,10 +1,13 @@
 import { Field } from '@/components/shared/field';
 import type { FieldsProps } from '@/components/shared/form-modal';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 export type DepartmentValues = {
     code: string;
     name: string;
+    is_active: boolean;
 };
 
 export function DepartmentFields({
@@ -36,6 +39,21 @@ export function DepartmentFields({
                     aria-invalid={Boolean(errors.name)}
                 />
             </Field>
+
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+                <Switch
+                    id="is_active"
+                    checked={data.is_active}
+                    onCheckedChange={(checked) => setData('is_active', checked)}
+                />
+                <div className="grid gap-0.5">
+                    <Label htmlFor="is_active">Jurusan aktif</Label>
+                    <p className="text-xs text-muted-foreground">
+                        Jurusan nonaktif tetap tersimpan namun disembunyikan dari
+                        pemilihan kelas dan siswa baru.
+                    </p>
+                </div>
+            </div>
         </>
     );
 }

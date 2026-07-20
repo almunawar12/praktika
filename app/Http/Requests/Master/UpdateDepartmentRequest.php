@@ -30,6 +30,7 @@ class UpdateDepartmentRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ],
             'name' => ['required', 'string', 'max:255'],
+            'is_active' => ['sometimes', 'boolean'],
         ];
     }
 

@@ -5,22 +5,48 @@ declare(strict_types=1);
 use App\Enums\RoleName;
 use App\Models\Department;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->admin = userWithRole(RoleName::AdminPkl);
 });
 
-test('admin can list departments', function (): void {
+test('admin can list departments with overview stats', function (): void {
     Department::factory()->count(3)->create();
+    Department::factory()->create(['is_active' => false]);
 
     $this->actingAs($this->admin)
         ->get('/master/departments')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('master/departments/index')
-            ->has('departments.data', 3)
+            ->has('departments.data', 4)
+            ->where('stats.total', 4)
+            ->where('stats.active', 3)
+            ->where('stats.inactive', 1)
+            ->where('stats.students', 0)
         );
+});
+
+test('the roster count follows a department through its classes', function (): void {
+    $department = Department::factory()->create();
+    $class = SchoolClass::factory()->create(['department_id' => $department->id]);
+    Student::factory()->count(2)->create(['class_id' => $class->id]);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/departments/{$department->id}")
+        ->assertOk()
+        ->assertJsonPath('data.students_count', 2)
+        ->assertJsonPath('data.is_active', true);
+});
+
+test('a department can be created inactive', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/master/departments', ['code' => 'X', 'name' => 'Nonaktif', 'is_active' => false])
+        ->assertRedirect('/master/departments');
+
+    $this->assertDatabaseHas('departments', ['code' => 'X', 'is_active' => false]);
 });
 
 test('admin can create a department', function (): void {

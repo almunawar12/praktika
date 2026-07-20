@@ -30,6 +30,7 @@ class DepartmentController extends Controller
             'departments' => $this->departments->paginate($table),
             'table' => $table->toArray(),
             'sortable' => DepartmentService::SORTABLE,
+            'stats' => $this->departments->stats(),
         ]);
     }
 
@@ -46,7 +47,7 @@ class DepartmentController extends Controller
     {
         $this->authorize('view', $department);
 
-        $department->loadCount('schoolClasses');
+        $department->loadCount(['schoolClasses', 'students']);
         $department->load('schoolClasses:id,department_id,name');
 
         return response()->json([

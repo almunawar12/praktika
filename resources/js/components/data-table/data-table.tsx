@@ -17,7 +17,8 @@ export type Column<T> = {
     header: string;
     /** Set when the server allows sorting on this column (see Service::SORTABLE). */
     sortable?: boolean;
-    cell: (row: T) => ReactNode;
+    /** `index` is the row's zero-based position on the current page. */
+    cell: (row: T, index: number) => ReactNode;
     /** Hidden below `md` — use for secondary columns so mobile stays readable. */
     hideOnMobile?: boolean;
     className?: string;
@@ -123,7 +124,7 @@ export function DataTable<T>({
                             </TableCell>
                         </TableRow>
                     ) : (
-                        page.data.map((row) => (
+                        page.data.map((row, index) => (
                             <TableRow key={rowKey(row)}>
                                 {columns.map((column) => (
                                     <TableCell
@@ -134,7 +135,7 @@ export function DataTable<T>({
                                             column.className,
                                         )}
                                     >
-                                        {column.cell(row)}
+                                        {column.cell(row, index)}
                                     </TableCell>
                                 ))}
                             </TableRow>
