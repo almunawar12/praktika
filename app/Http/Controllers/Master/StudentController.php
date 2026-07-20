@@ -35,6 +35,7 @@ class StudentController extends Controller
             'sortable' => StudentService::SORTABLE,
             'classes' => $this->classOptions(),
             'departments' => $this->departmentOptions(),
+            'stats' => $this->students->stats($request->user()),
         ]);
     }
 

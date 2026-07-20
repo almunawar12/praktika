@@ -20,6 +20,31 @@ class StudentService
     public function __construct(private readonly UserAccountService $accounts) {}
 
     /**
+     * Totals for the overview cards, scoped to what the viewer may see.
+     *
+     * @return array{total: int, active: int, inactive: int, placed: int}
+     */
+    public function stats(User $viewer): array
+    {
+        $counts = Student::query()
+            ->visibleTo($viewer)
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where exists (select 1 from users where users.id = students.user_id and users.is_active)) as active')
+            ->selectRaw('count(*) filter (where exists (select 1 from placements where placements.student_id = students.id and placements.deleted_at is null)) as placed')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $active = (int) ($counts?->getAttribute('active') ?? 0);
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
+            'placed' => (int) ($counts?->getAttribute('placed') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Student>
      */
     public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator

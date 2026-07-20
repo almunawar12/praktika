@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\RoleName;
+use App\Models\Placement;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
@@ -57,6 +58,25 @@ test('show and edit return json for the modal', function (): void {
         ->getJson("/master/students/{$student->id}/edit")
         ->assertOk()
         ->assertJsonPath('data.school_class.id', $this->class->id);
+});
+
+test('the student index carries scoped overview stats', function (): void {
+    $placed = Student::factory()->create(['class_id' => $this->class->id]);
+    Placement::factory()->create(['student_id' => $placed->id]);
+    Student::factory()->count(2)->create(['class_id' => $this->class->id]);
+    $inactive = Student::factory()->create(['class_id' => $this->class->id]);
+    $inactive->user->update(['is_active' => false]);
+
+    $this->actingAs($this->admin)
+        ->get('/master/students')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stats.total', 4)
+            ->where('stats.active', 3)
+            ->where('stats.inactive', 1)
+            ->where('stats.placed', 1)
+            ->etc()
+        );
 });
 
 test('the student create page route is removed', function (): void {
