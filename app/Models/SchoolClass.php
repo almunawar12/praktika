@@ -21,13 +21,14 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string $id
  * @property string $department_id
  * @property string $name
+ * @property bool $is_active
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property CarbonImmutable|null $deleted_at
  * @property-read Department $department
  * @property-read Collection<int, Student> $students
  */
-#[Fillable(['department_id', 'name'])]
+#[Fillable(['department_id', 'name', 'is_active'])]
 class SchoolClass extends Model
 {
     /** @use HasFactory<SchoolClassFactory> */
@@ -39,11 +40,19 @@ class SchoolClass extends Model
 
     protected $table = 'school_classes';
 
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean'];
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('school-class')
-            ->logOnly(['department_id', 'name'])
+            ->logOnly(['department_id', 'name', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

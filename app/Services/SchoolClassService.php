@@ -7,11 +7,35 @@ namespace App\Services;
 use App\DataTransferObjects\TableRequest;
 use App\Exceptions\ResourceInUseException;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class SchoolClassService
 {
     public const SORTABLE = ['name', 'created_at'];
+
+    /**
+     * Totals for the overview cards, computed in one aggregate pass.
+     *
+     * @return array{total: int, active: int, inactive: int, students: int}
+     */
+    public function stats(): array
+    {
+        $counts = SchoolClass::query()
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where is_active) as active')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $active = (int) ($counts?->getAttribute('active') ?? 0);
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
+            'students' => Student::query()->count(),
+        ];
+    }
 
     /**
      * @return LengthAwarePaginator<int, SchoolClass>

@@ -1,6 +1,7 @@
 import { Field } from '@/components/shared/field';
 import type { FieldsProps } from '@/components/shared/form-modal';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -8,11 +9,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import type { SelectOption } from '@/types/table';
 
 export type SchoolClassValues = {
     department_id: string;
     name: string;
+    is_active: boolean;
 };
 
 type Props = FieldsProps<SchoolClassValues> & {
@@ -69,6 +72,21 @@ export function SchoolClassFields({
                     aria-invalid={Boolean(errors.name)}
                 />
             </Field>
+
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+                <Switch
+                    id="is_active"
+                    checked={data.is_active}
+                    onCheckedChange={(checked) => setData('is_active', checked)}
+                />
+                <div className="grid gap-0.5">
+                    <Label htmlFor="is_active">Kelas aktif</Label>
+                    <p className="text-xs text-muted-foreground">
+                        Kelas nonaktif tetap tersimpan namun disembunyikan dari
+                        penempatan siswa baru.
+                    </p>
+                </div>
+            </div>
         </>
     );
 }

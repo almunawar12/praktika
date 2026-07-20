@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
+import { TablePager } from '@/components/data-table/table-pager';
 import {
     DepartmentDetail,
     type DepartmentRecord,
@@ -38,7 +39,6 @@ import { usePermission } from '@/hooks/use-permission';
 import { useResource } from '@/hooks/use-resource';
 import { useTableQuery } from '@/hooks/use-table-query';
 import AppLayout from '@/layouts/app-layout';
-import { cn } from '@/lib/utils';
 import type { Paginated, TableState } from '@/types/table';
 
 type Department = {
@@ -66,18 +66,6 @@ type Props = {
 type Modal = { mode: 'create' | 'edit' | 'detail'; id?: string } | null;
 
 const PER_PAGE_OPTIONS = ['10', '15', '25', '50'];
-
-function pageWindow(current: number, last: number): number[] {
-    if (last <= 7) {
-        return Array.from({ length: last }, (_, i) => i + 1);
-    }
-
-    const pages = new Set([1, last, current, current - 1, current + 1]);
-
-    return [...pages]
-        .filter((page) => page >= 1 && page <= last)
-        .sort((a, b) => a - b);
-}
 
 export default function DepartmentIndex({ departments, table, stats }: Props) {
     const { can } = usePermission();
@@ -201,11 +189,6 @@ export default function DepartmentIndex({ departments, table, stats }: Props) {
         },
     ];
 
-    const pages = pageWindow(
-        departments.current_page,
-        departments.last_page,
-    );
-
     return (
         <AppLayout
             title="Master Data - Jurusan"
@@ -306,87 +289,10 @@ export default function DepartmentIndex({ departments, table, stats }: Props) {
                             emptyMessage="Belum ada jurusan."
                         />
 
-                        <div className="flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                {departments.total === 0
-                                    ? 'Tidak ada data'
-                                    : `Menampilkan ${departments.from} sampai ${departments.to} dari ${departments.total} data`}
-                            </p>
-
-                            {departments.last_page > 1 ? (
-                                <div className="flex items-center gap-1">
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="size-9"
-                                        disabled={departments.current_page <= 1}
-                                        onClick={() =>
-                                            goToPage(departments.current_page - 1)
-                                        }
-                                        aria-label="Halaman sebelumnya"
-                                    >
-                                        &lsaquo;
-                                    </Button>
-
-                                    {pages.map((page, i) => {
-                                        const gap =
-                                            i > 0 && page - pages[i - 1] > 1;
-
-                                        return (
-                                            <div
-                                                key={page}
-                                                className="flex items-center gap-1"
-                                            >
-                                                {gap ? (
-                                                    <span className="px-1 text-muted-foreground">
-                                                        …
-                                                    </span>
-                                                ) : null}
-                                                <Button
-                                                    variant={
-                                                        page ===
-                                                        departments.current_page
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="icon"
-                                                    className={cn(
-                                                        'size-9 tabular-nums',
-                                                    )}
-                                                    onClick={() =>
-                                                        goToPage(page)
-                                                    }
-                                                    aria-current={
-                                                        page ===
-                                                        departments.current_page
-                                                            ? 'page'
-                                                            : undefined
-                                                    }
-                                                >
-                                                    {page}
-                                                </Button>
-                                            </div>
-                                        );
-                                    })}
-
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="size-9"
-                                        disabled={
-                                            departments.current_page >=
-                                            departments.last_page
-                                        }
-                                        onClick={() =>
-                                            goToPage(departments.current_page + 1)
-                                        }
-                                        aria-label="Halaman berikutnya"
-                                    >
-                                        &rsaquo;
-                                    </Button>
-                                </div>
-                            ) : null}
-                        </div>
+                        <TablePager
+                            page={departments}
+                            onPageChange={goToPage}
+                        />
                     </CardContent>
                 </Card>
             </div>

@@ -28,12 +28,40 @@ test('show and edit return json for the modal', function (): void {
         ->getJson("/master/classes/{$class->id}")
         ->assertOk()
         ->assertJsonPath('data.name', 'XII A')
+        ->assertJsonPath('data.is_active', true)
         ->assertJsonPath('data.department.id', $this->department->id);
 
     $this->actingAs($this->admin)
         ->getJson("/master/classes/{$class->id}/edit")
         ->assertOk()
         ->assertJsonPath('data.id', $class->id);
+});
+
+test('the class index carries overview stats', function (): void {
+    SchoolClass::factory()->count(2)->create(['department_id' => $this->department->id]);
+    SchoolClass::factory()->create(['department_id' => $this->department->id, 'is_active' => false]);
+
+    $this->actingAs($this->admin)
+        ->get('/master/classes')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stats.total', 3)
+            ->where('stats.active', 2)
+            ->where('stats.inactive', 1)
+            ->etc()
+        );
+});
+
+test('a class can be created inactive', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/master/classes', [
+            'department_id' => $this->department->id,
+            'name' => 'XII Z',
+            'is_active' => false,
+        ])
+        ->assertRedirect('/master/classes');
+
+    $this->assertDatabaseHas('school_classes', ['name' => 'XII Z', 'is_active' => false]);
 });
 
 test('the class create page route is removed', function (): void {

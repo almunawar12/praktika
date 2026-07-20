@@ -32,6 +32,7 @@ class SchoolClassController extends Controller
             'table' => $table->toArray(),
             'sortable' => SchoolClassService::SORTABLE,
             'departments' => $this->departmentOptions(),
+            'stats' => $this->classes->stats(),
         ]);
     }
 

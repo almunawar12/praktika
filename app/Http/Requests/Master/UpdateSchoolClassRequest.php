@@ -34,6 +34,7 @@ class UpdateSchoolClassRequest extends FormRequest
                     ->where('department_id', $this->input('department_id'))
                     ->whereNull('deleted_at'),
             ],
+            'is_active' => ['sometimes', 'boolean'],
         ];
     }
 
