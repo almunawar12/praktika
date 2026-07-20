@@ -31,6 +31,7 @@ class TeacherController extends Controller
             'teachers' => $this->teachers->paginate($table),
             'table' => $table->toArray(),
             'sortable' => TeacherService::SORTABLE,
+            'stats' => $this->teachers->stats(),
         ]);
     }
 

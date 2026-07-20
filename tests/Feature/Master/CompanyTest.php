@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\RoleName;
 use App\Models\Company;
+use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->admin = userWithRole(RoleName::AdminPkl);
@@ -43,6 +44,22 @@ test('show and edit return json for the modal', function (): void {
         ->getJson("/master/companies/{$company->id}/edit")
         ->assertOk()
         ->assertJsonPath('data.id', $company->id);
+});
+
+test('the company index carries overview stats', function (): void {
+    Company::factory()->count(2)->create(['quota' => 5]);
+    Company::factory()->create(['is_active' => false, 'quota' => 3]);
+
+    $this->actingAs($this->admin)
+        ->get('/master/companies')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stats.total', 3)
+            ->where('stats.active', 2)
+            ->where('stats.inactive', 1)
+            ->where('stats.quota', 13)
+            ->etc()
+        );
 });
 
 test('the company create page route is removed', function (): void {

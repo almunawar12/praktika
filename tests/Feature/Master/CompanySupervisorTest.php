@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 use App\Models\Company;
 use App\Models\CompanySupervisor;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->admin = userWithRole(RoleName::AdminPkl);
@@ -48,6 +49,24 @@ test('show and edit return json for the modal', function (): void {
         ->getJson("/master/supervisors/{$supervisor->id}/edit")
         ->assertOk()
         ->assertJsonPath('data.user.email', $supervisor->user->email);
+});
+
+test('the supervisor index carries overview stats', function (): void {
+    CompanySupervisor::factory()->count(2)->create(['company_id' => $this->company->id]);
+    $other = Company::factory()->create();
+    $inactive = CompanySupervisor::factory()->create(['company_id' => $other->id]);
+    $inactive->user->update(['is_active' => false]);
+
+    $this->actingAs($this->admin)
+        ->get('/master/supervisors')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stats.total', 3)
+            ->where('stats.active', 2)
+            ->where('stats.inactive', 1)
+            ->where('stats.companies', 2)
+            ->etc()
+        );
 });
 
 test('the supervisor create page route is removed', function (): void {

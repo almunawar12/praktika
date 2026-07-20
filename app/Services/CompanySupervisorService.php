@@ -18,6 +18,30 @@ class CompanySupervisorService
     public function __construct(private readonly UserAccountService $accounts) {}
 
     /**
+     * Totals for the overview cards.
+     *
+     * @return array{total: int, active: int, inactive: int, companies: int}
+     */
+    public function stats(): array
+    {
+        $counts = CompanySupervisor::query()
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where exists (select 1 from users where users.id = company_supervisors.user_id and users.is_active)) as active')
+            ->selectRaw('count(distinct company_id) as companies')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $active = (int) ($counts?->getAttribute('active') ?? 0);
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
+            'companies' => (int) ($counts?->getAttribute('companies') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, CompanySupervisor>
      */
     public function paginate(TableRequest $table): LengthAwarePaginator

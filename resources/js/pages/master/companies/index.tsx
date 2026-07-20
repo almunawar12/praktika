@@ -1,9 +1,17 @@
-import { Plus } from 'lucide-react';
+import {
+    Building2,
+    CircleCheck,
+    CirclePause,
+    Pencil,
+    Plus,
+    Search,
+    Trash2,
+    Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { TablePager } from '@/components/data-table/table-pager';
 import {
     CompanyDetail,
     type CompanyRecord,
@@ -12,11 +20,21 @@ import {
     CompanyFields,
     type CompanyValues,
 } from '@/components/master/company-form';
+import { DeleteDialog } from '@/components/shared/delete-dialog';
 import { DetailModal } from '@/components/shared/detail-modal';
 import { FormModal } from '@/components/shared/form-modal';
-import { RowActions } from '@/components/shared/row-actions';
+import { StatCard } from '@/components/shared/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { usePermission } from '@/hooks/use-permission';
 import { useResource } from '@/hooks/use-resource';
 import { useTableQuery } from '@/hooks/use-table-query';
@@ -33,9 +51,17 @@ type Company = {
     is_active: boolean;
 };
 
+type Stats = {
+    total: number;
+    active: number;
+    inactive: number;
+    quota: number;
+};
+
 type Props = {
     companies: Paginated<Company>;
     table: TableState;
+    stats: Stats;
 };
 
 type EditRecord = CompanyRecord & {
@@ -46,16 +72,21 @@ type EditRecord = CompanyRecord & {
 
 type Modal = { mode: 'create' | 'edit' | 'detail'; id?: string } | null;
 
+const PER_PAGE_OPTIONS = ['10', '15', '25', '50'];
+
 function toField(value: string | number | null): string {
     return value === null ? '' : String(value);
 }
 
-export default function CompanyIndex({ companies, table }: Props) {
+export default function CompanyIndex({ companies, table, stats }: Props) {
     const { can } = usePermission();
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
         useTableQuery('/master/companies', table);
 
     const [modal, setModal] = useState<Modal>(null);
+    const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(
+        null,
+    );
 
     const detailUrl =
         modal?.mode === 'detail' && modal.id
@@ -72,6 +103,18 @@ export default function CompanyIndex({ companies, table }: Props) {
     const close = () => setModal(null);
 
     const columns: Column<Company>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {companies.from !== null
+                        ? companies.from + index
+                        : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'name',
             header: 'Nama',
@@ -114,74 +157,182 @@ export default function CompanyIndex({ companies, table }: Props) {
             cell: (row) => <span className="tabular-nums">{row.quota}</span>,
         },
         {
-            key: 'is_active',
+            key: 'status',
             header: 'Status',
             cell: (row) =>
                 row.is_active ? (
-                    <Badge variant="secondary">Aktif</Badge>
+                    <Badge className="border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                        Aktif
+                    </Badge>
                 ) : (
-                    <Badge variant="outline">Nonaktif</Badge>
+                    <Badge variant="secondary">Nonaktif</Badge>
                 ),
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-12',
+            header: 'Aksi',
+            className: 'w-24',
             cell: (row) => (
-                <RowActions
-                    onShow={() => setModal({ mode: 'detail', id: row.id })}
-                    onEdit={() => setModal({ mode: 'edit', id: row.id })}
-                    deleteHref={`/master/companies/${row.id}`}
-                    deleteDescription={`Perusahaan "${row.name}" akan dihapus. Jika hanya ingin menghentikan sementara, ubah statusnya menjadi nonaktif.`}
-                    canUpdate={can('companies.update')}
-                    canDelete={can('companies.delete')}
-                />
+                <div className="flex items-center gap-1">
+                    {can('companies.update') ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-foreground"
+                            onClick={() => setModal({ mode: 'edit', id: row.id })}
+                        >
+                            <Pencil className="size-4" aria-hidden="true" />
+                            <span className="sr-only">Ubah {row.name}</span>
+                        </Button>
+                    ) : null}
+                    {can('companies.delete') ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-destructive"
+                            onClick={() =>
+                                setDeleting({ id: row.id, name: row.name })
+                            }
+                        >
+                            <Trash2 className="size-4" aria-hidden="true" />
+                            <span className="sr-only">Hapus {row.name}</span>
+                        </Button>
+                    ) : null}
+                </div>
             ),
         },
     ];
 
     return (
-        <AppLayout title="Perusahaan" description="Kelola data DUDI tempat PKL">
-            <div className="flex flex-col gap-4">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari nama, bidang usaha, atau PIC..."
-                    filters={[
-                        {
-                            key: 'is_active',
-                            label: 'Status',
-                            value: table.filters.is_active ?? 'all',
-                            options: [
-                                { value: 'active', label: 'Aktif' },
-                                { value: 'inactive', label: 'Nonaktif' },
-                            ],
-                        },
-                    ]}
-                    onFilterChange={filterBy}
-                >
-                    {can('companies.create') ? (
-                        <Button onClick={() => setModal({ mode: 'create' })}>
-                            <Plus className="size-4" aria-hidden="true" />
-                            Tambah Perusahaan
-                        </Button>
-                    ) : null}
-                </DataTableToolbar>
+        <AppLayout
+            title="Master Data - Perusahaan"
+            headTitle="Perusahaan"
+            description="Kelola data DUDI tempat PKL beserta kuota dan status penerimaannya."
+            actions={
+                can('companies.create') ? (
+                    <Button onClick={() => setModal({ mode: 'create' })}>
+                        <Plus className="size-4" aria-hidden="true" />
+                        Tambah Perusahaan
+                    </Button>
+                ) : undefined
+            }
+        >
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={Building2}
+                        tone="blue"
+                        label="Total Perusahaan"
+                        value={stats.total}
+                        hint="Semua DUDI"
+                    />
+                    <StatCard
+                        icon={CircleCheck}
+                        tone="green"
+                        label="Aktif"
+                        value={stats.active}
+                        hint="Menerima siswa"
+                    />
+                    <StatCard
+                        icon={CirclePause}
+                        tone="amber"
+                        label="Nonaktif"
+                        value={stats.inactive}
+                        hint="Tidak menerima"
+                    />
+                    <StatCard
+                        icon={Users}
+                        tone="violet"
+                        label="Total Kuota"
+                        value={stats.quota}
+                        hint="Slot PKL tersedia"
+                    />
+                </div>
 
-                <DataTable
-                    columns={columns}
-                    page={companies}
-                    state={table}
-                    onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada perusahaan."
-                />
+                <Card>
+                    <CardContent className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Select
+                                    value={String(companies.per_page)}
+                                    onValueChange={setPerPage}
+                                >
+                                    <SelectTrigger
+                                        className="w-[72px]"
+                                        aria-label="Jumlah baris per halaman"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {PER_PAGE_OPTIONS.map((option) => (
+                                            <SelectItem
+                                                key={option}
+                                                value={option}
+                                            >
+                                                {option}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                data per halaman
+                            </div>
 
-                <DataTablePagination
-                    page={companies}
-                    onPageChange={goToPage}
-                    onPerPageChange={setPerPage}
-                />
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <Select
+                                    value={table.filters.is_active ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('is_active', value)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        className="sm:w-40"
+                                        aria-label="Filter status"
+                                    >
+                                        <SelectValue placeholder="Semua status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua status
+                                        </SelectItem>
+                                        <SelectItem value="active">
+                                            Aktif
+                                        </SelectItem>
+                                        <SelectItem value="inactive">
+                                            Nonaktif
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="relative sm:w-72">
+                                    <Search
+                                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <Input
+                                        value={search}
+                                        onChange={(event) =>
+                                            setSearch(event.target.value)
+                                        }
+                                        placeholder="Cari nama, bidang usaha, atau PIC..."
+                                        className="pl-9"
+                                        aria-label="Cari perusahaan"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <DataTable
+                            columns={columns}
+                            page={companies}
+                            state={table}
+                            onSort={sortBy}
+                            rowKey={(row) => row.id}
+                            emptyMessage="Belum ada perusahaan."
+                        />
+
+                        <TablePager page={companies} onPageChange={goToPage} />
+                    </CardContent>
+                </Card>
             </div>
 
             <FormModal<CompanyValues>
@@ -255,6 +406,17 @@ export default function CompanyIndex({ companies, table }: Props) {
             >
                 {detail.data ? <CompanyDetail record={detail.data} /> : null}
             </DetailModal>
+
+            <DeleteDialog
+                open={deleting !== null}
+                onOpenChange={(open) => !open && setDeleting(null)}
+                action={deleting ? `/master/companies/${deleting.id}` : ''}
+                description={
+                    deleting
+                        ? `Perusahaan "${deleting.name}" akan dihapus. Jika hanya ingin menghentikan sementara, ubah statusnya menjadi nonaktif.`
+                        : ''
+                }
+            />
         </AppLayout>
     );
 }

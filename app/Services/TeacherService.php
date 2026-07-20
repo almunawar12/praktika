@@ -19,6 +19,30 @@ class TeacherService
     public function __construct(private readonly UserAccountService $accounts) {}
 
     /**
+     * Totals for the overview cards.
+     *
+     * @return array{total: int, active: int, inactive: int, supervising: int}
+     */
+    public function stats(): array
+    {
+        $counts = Teacher::query()
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where exists (select 1 from users where users.id = teachers.user_id and users.is_active)) as active')
+            ->selectRaw('count(*) filter (where exists (select 1 from placements where placements.teacher_id = teachers.id and placements.deleted_at is null)) as supervising')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $active = (int) ($counts?->getAttribute('active') ?? 0);
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
+            'supervising' => (int) ($counts?->getAttribute('supervising') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Teacher>
      */
     public function paginate(TableRequest $table): LengthAwarePaginator

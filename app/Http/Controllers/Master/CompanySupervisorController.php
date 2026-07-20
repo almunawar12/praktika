@@ -32,6 +32,7 @@ class CompanySupervisorController extends Controller
             'supervisors' => $this->supervisors->paginate($table),
             'table' => $table->toArray(),
             'companies' => $this->companyOptions(),
+            'stats' => $this->supervisors->stats(),
         ]);
     }
 

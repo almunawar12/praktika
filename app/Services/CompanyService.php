@@ -15,6 +15,31 @@ class CompanyService
     public const SORTABLE = ['name', 'business_field', 'quota', 'created_at'];
 
     /**
+     * Totals for the overview cards, scoped to what the viewer may see.
+     *
+     * @return array{total: int, active: int, inactive: int, quota: int}
+     */
+    public function stats(User $viewer): array
+    {
+        $counts = Company::query()
+            ->visibleTo($viewer)
+            ->selectRaw('count(*) as total')
+            ->selectRaw('count(*) filter (where is_active) as active')
+            ->selectRaw('coalesce(sum(quota), 0) as quota')
+            ->first();
+
+        $total = (int) ($counts?->getAttribute('total') ?? 0);
+        $active = (int) ($counts?->getAttribute('active') ?? 0);
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $total - $active,
+            'quota' => (int) ($counts?->getAttribute('quota') ?? 0),
+        ];
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Company>
      */
     public function paginate(TableRequest $table, User $viewer): LengthAwarePaginator

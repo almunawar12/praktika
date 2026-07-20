@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\RoleName;
+use App\Models\Placement;
 use App\Models\Teacher;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia;
 
 beforeEach(function (): void {
     $this->admin = userWithRole(RoleName::AdminPkl);
@@ -45,6 +47,25 @@ test('show and edit return json for the modal', function (): void {
         ->getJson("/master/teachers/{$teacher->id}/edit")
         ->assertOk()
         ->assertJsonPath('data.id', $teacher->id);
+});
+
+test('the teacher index carries overview stats', function (): void {
+    $supervising = Teacher::factory()->create();
+    Placement::factory()->create(['teacher_id' => $supervising->id]);
+    Teacher::factory()->count(2)->create();
+    $inactive = Teacher::factory()->create();
+    $inactive->user->update(['is_active' => false]);
+
+    $this->actingAs($this->admin)
+        ->get('/master/teachers')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('stats.total', 4)
+            ->where('stats.active', 3)
+            ->where('stats.inactive', 1)
+            ->where('stats.supervising', 1)
+            ->etc()
+        );
 });
 
 test('the teacher create page route is removed', function (): void {

@@ -30,6 +30,7 @@ class CompanyController extends Controller
             'companies' => $this->companies->paginate($table, $request->user()),
             'table' => $table->toArray(),
             'sortable' => CompanyService::SORTABLE,
+            'stats' => $this->companies->stats($request->user()),
         ]);
     }
 

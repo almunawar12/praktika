@@ -1,9 +1,17 @@
-import { Plus } from 'lucide-react';
+import {
+    Building2,
+    CircleCheck,
+    CirclePause,
+    Pencil,
+    Plus,
+    Search,
+    Trash2,
+    UserCog,
+} from 'lucide-react';
 import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
-import { DataTablePagination } from '@/components/data-table/data-table-pagination';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import { TablePager } from '@/components/data-table/table-pager';
 import {
     SupervisorDetail,
     type SupervisorRecord,
@@ -12,11 +20,21 @@ import {
     SupervisorFields,
     type SupervisorValues,
 } from '@/components/master/supervisor-form';
+import { DeleteDialog } from '@/components/shared/delete-dialog';
 import { DetailModal } from '@/components/shared/detail-modal';
 import { FormModal } from '@/components/shared/form-modal';
-import { RowActions } from '@/components/shared/row-actions';
+import { StatCard } from '@/components/shared/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { usePermission } from '@/hooks/use-permission';
 import { useResource } from '@/hooks/use-resource';
 import { useTableQuery } from '@/hooks/use-table-query';
@@ -32,25 +50,39 @@ type Supervisor = {
     company: { id: string; name: string };
 };
 
+type Stats = {
+    total: number;
+    active: number;
+    inactive: number;
+    companies: number;
+};
+
 type Props = {
     supervisors: Paginated<Supervisor>;
     table: TableState;
     companies: SelectOption[];
+    stats: Stats;
 };
 
 type EditRecord = SupervisorRecord & { company_id: string };
 type Modal = { mode: 'create' | 'edit' | 'detail'; id?: string } | null;
 
+const PER_PAGE_OPTIONS = ['10', '15', '25', '50'];
+
 export default function SupervisorIndex({
     supervisors,
     table,
     companies,
+    stats,
 }: Props) {
     const { can } = usePermission();
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
         useTableQuery('/master/supervisors', table);
 
     const [modal, setModal] = useState<Modal>(null);
+    const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(
+        null,
+    );
 
     const detailUrl =
         modal?.mode === 'detail' && modal.id
@@ -67,6 +99,18 @@ export default function SupervisorIndex({
     const close = () => setModal(null);
 
     const columns: Column<Supervisor>[] = [
+        {
+            key: 'no',
+            header: 'No',
+            className: 'w-12 text-muted-foreground',
+            cell: (_row, index) => (
+                <span className="tabular-nums">
+                    {supervisors.from !== null
+                        ? supervisors.from + index
+                        : index + 1}
+                </span>
+            ),
+        },
         {
             key: 'name',
             header: 'Nama',
@@ -101,82 +145,208 @@ export default function SupervisorIndex({
         },
         {
             key: 'status',
-            header: 'Akun',
+            header: 'Status',
             cell: (row) =>
                 row.user.is_active ? (
-                    <Badge variant="secondary">Aktif</Badge>
+                    <Badge className="border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                        Aktif
+                    </Badge>
                 ) : (
-                    <Badge variant="outline">Nonaktif</Badge>
+                    <Badge variant="secondary">Nonaktif</Badge>
                 ),
         },
         {
             key: 'actions',
-            header: '',
-            className: 'w-12',
+            header: 'Aksi',
+            className: 'w-24',
             cell: (row) => (
-                <RowActions
-                    onShow={() => setModal({ mode: 'detail', id: row.id })}
-                    onEdit={() => setModal({ mode: 'edit', id: row.id })}
-                    deleteHref={`/master/supervisors/${row.id}`}
-                    deleteDescription={`Pembimbing "${row.name}" akan dihapus dan akun loginnya dinonaktifkan. Riwayat verifikasi dan review tetap tersimpan.`}
-                    canUpdate={can('company-supervisors.update')}
-                    canDelete={can('company-supervisors.delete')}
-                />
+                <div className="flex items-center gap-1">
+                    {can('company-supervisors.update') ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-foreground"
+                            onClick={() => setModal({ mode: 'edit', id: row.id })}
+                        >
+                            <Pencil className="size-4" aria-hidden="true" />
+                            <span className="sr-only">Ubah {row.name}</span>
+                        </Button>
+                    ) : null}
+                    {can('company-supervisors.delete') ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-muted-foreground hover:text-destructive"
+                            onClick={() =>
+                                setDeleting({ id: row.id, name: row.name })
+                            }
+                        >
+                            <Trash2 className="size-4" aria-hidden="true" />
+                            <span className="sr-only">Hapus {row.name}</span>
+                        </Button>
+                    ) : null}
+                </div>
             ),
         },
     ];
 
     return (
         <AppLayout
-            title="Pembimbing Industri"
-            description="Kelola pembimbing dari pihak perusahaan"
+            title="Master Data - Pembimbing Industri"
+            headTitle="Pembimbing Industri"
+            description="Kelola pembimbing dari pihak perusahaan beserta akun login dan penempatannya."
+            actions={
+                can('company-supervisors.create') ? (
+                    <Button onClick={() => setModal({ mode: 'create' })}>
+                        <Plus className="size-4" aria-hidden="true" />
+                        Tambah Pembimbing
+                    </Button>
+                ) : undefined
+            }
         >
-            <div className="flex flex-col gap-4">
-                <DataTableToolbar
-                    search={search}
-                    onSearchChange={setSearch}
-                    searchPlaceholder="Cari nama, jabatan, email, atau perusahaan..."
-                    filters={[
-                        {
-                            key: 'company_id',
-                            label: 'Perusahaan',
-                            value: table.filters.company_id ?? 'all',
-                            options: companies,
-                        },
-                        {
-                            key: 'is_active',
-                            label: 'Status',
-                            value: table.filters.is_active ?? 'all',
-                            options: [
-                                { value: 'active', label: 'Aktif' },
-                                { value: 'inactive', label: 'Nonaktif' },
-                            ],
-                        },
-                    ]}
-                    onFilterChange={filterBy}
-                >
-                    {can('company-supervisors.create') ? (
-                        <Button onClick={() => setModal({ mode: 'create' })}>
-                            <Plus className="size-4" aria-hidden="true" />
-                            Tambah Pembimbing
-                        </Button>
-                    ) : null}
-                </DataTableToolbar>
+            <div className="flex flex-col gap-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        icon={UserCog}
+                        tone="blue"
+                        label="Total Pembimbing"
+                        value={stats.total}
+                        hint="Semua pembimbing industri"
+                    />
+                    <StatCard
+                        icon={CircleCheck}
+                        tone="green"
+                        label="Akun Aktif"
+                        value={stats.active}
+                        hint="Bisa login"
+                    />
+                    <StatCard
+                        icon={CirclePause}
+                        tone="amber"
+                        label="Akun Nonaktif"
+                        value={stats.inactive}
+                        hint="Tidak bisa login"
+                    />
+                    <StatCard
+                        icon={Building2}
+                        tone="violet"
+                        label="Perusahaan"
+                        value={stats.companies}
+                        hint="Punya pembimbing"
+                    />
+                </div>
 
-                <DataTable
-                    columns={columns}
-                    page={supervisors}
-                    state={table}
-                    onSort={sortBy}
-                    rowKey={(row) => row.id}
-                    emptyMessage="Belum ada pembimbing industri."
-                />
+                <Card>
+                    <CardContent className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Select
+                                    value={String(supervisors.per_page)}
+                                    onValueChange={setPerPage}
+                                >
+                                    <SelectTrigger
+                                        className="w-[72px]"
+                                        aria-label="Jumlah baris per halaman"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {PER_PAGE_OPTIONS.map((option) => (
+                                            <SelectItem
+                                                key={option}
+                                                value={option}
+                                            >
+                                                {option}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                data per halaman
+                            </div>
 
-                <DataTablePagination
-                    page={supervisors}
-                    onPageChange={goToPage}
-                    onPerPageChange={setPerPage}
-                />
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <Select
+                                    value={table.filters.company_id ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('company_id', value)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        className="sm:w-48"
+                                        aria-label="Filter perusahaan"
+                                    >
+                                        <SelectValue placeholder="Semua perusahaan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua perusahaan
+                                        </SelectItem>
+                                        {companies.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={table.filters.is_active ?? 'all'}
+                                    onValueChange={(value) =>
+                                        filterBy('is_active', value)
+                                    }
+                                >
+                                    <SelectTrigger
+                                        className="sm:w-36"
+                                        aria-label="Filter status"
+                                    >
+                                        <SelectValue placeholder="Semua status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua status
+                                        </SelectItem>
+                                        <SelectItem value="active">
+                                            Aktif
+                                        </SelectItem>
+                                        <SelectItem value="inactive">
+                                            Nonaktif
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="relative sm:w-64">
+                                    <Search
+                                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <Input
+                                        value={search}
+                                        onChange={(event) =>
+                                            setSearch(event.target.value)
+                                        }
+                                        placeholder="Cari nama, jabatan, email..."
+                                        className="pl-9"
+                                        aria-label="Cari pembimbing"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <DataTable
+                            columns={columns}
+                            page={supervisors}
+                            state={table}
+                            onSort={sortBy}
+                            rowKey={(row) => row.id}
+                            emptyMessage="Belum ada pembimbing industri."
+                        />
+
+                        <TablePager page={supervisors} onPageChange={goToPage} />
+                    </CardContent>
+                </Card>
             </div>
 
             <FormModal<SupervisorValues>
@@ -254,6 +424,17 @@ export default function SupervisorIndex({
                     <SupervisorDetail record={detail.data} />
                 ) : null}
             </DetailModal>
+
+            <DeleteDialog
+                open={deleting !== null}
+                onOpenChange={(open) => !open && setDeleting(null)}
+                action={deleting ? `/master/supervisors/${deleting.id}` : ''}
+                description={
+                    deleting
+                        ? `Pembimbing "${deleting.name}" akan dihapus dan akun loginnya dinonaktifkan. Riwayat verifikasi dan review tetap tersimpan.`
+                        : ''
+                }
+            />
         </AppLayout>
     );
 }
