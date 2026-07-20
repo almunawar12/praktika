@@ -12,6 +12,7 @@ use App\Http\Requests\Master\UpdateCompanySupervisorRequest;
 use App\Models\Company;
 use App\Models\CompanySupervisor;
 use App\Services\CompanySupervisorService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -34,25 +35,16 @@ class CompanySupervisorController extends Controller
         ]);
     }
 
-    public function create(): Response
-    {
-        $this->authorize('create', CompanySupervisor::class);
-
-        return Inertia::render('master/supervisors/create', [
-            'companies' => $this->companyOptions(),
-        ]);
-    }
-
     public function store(StoreCompanySupervisorRequest $request): RedirectResponse
     {
-        $supervisor = $this->supervisors->create(CompanySupervisorData::fromRequest($request));
+        $this->supervisors->create(CompanySupervisorData::fromRequest($request));
 
         return redirect()
-            ->route('master.supervisors.show', $supervisor)
+            ->route('master.supervisors.index')
             ->with('success', 'Pembimbing industri ditambahkan. Akun login dibuat — minta yang bersangkutan melakukan reset kata sandi untuk mengaktifkannya.');
     }
 
-    public function show(CompanySupervisor $supervisor): Response
+    public function show(CompanySupervisor $supervisor): JsonResponse
     {
         $this->authorize('view', $supervisor);
 
@@ -61,20 +53,26 @@ class CompanySupervisorController extends Controller
             'company:id,name,business_field',
         ]);
 
-        return Inertia::render('master/supervisors/show', [
-            'supervisor' => $supervisor,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $supervisor,
         ]);
     }
 
-    public function edit(CompanySupervisor $supervisor): Response
+    public function edit(CompanySupervisor $supervisor): JsonResponse
     {
         $this->authorize('update', $supervisor);
 
-        $supervisor->load('user:id,email');
+        $supervisor->load([
+            'user:id,email',
+            'company:id,name,business_field',
+        ]);
 
-        return Inertia::render('master/supervisors/edit', [
-            'supervisor' => $supervisor,
-            'companies' => $this->companyOptions(),
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $supervisor,
         ]);
     }
 
@@ -85,7 +83,7 @@ class CompanySupervisorController extends Controller
         $this->supervisors->update($supervisor, CompanySupervisorData::fromRequest($request));
 
         return redirect()
-            ->route('master.supervisors.show', $supervisor)
+            ->route('master.supervisors.index')
             ->with('success', 'Pembimbing industri berhasil diperbarui.');
     }
 

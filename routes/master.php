@@ -38,5 +38,6 @@ Route::middleware('auth')->prefix('master')->name('master.')->group(function ():
 
     Route::resource('supervisors', CompanySupervisorController::class)
         ->parameters(['supervisors' => 'supervisor'])
+        ->except('create')
         ->middleware('can:company-supervisors.viewAny');
 });

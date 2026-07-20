@@ -35,6 +35,37 @@ test('creating a supervisor also creates a pembimbing industri login account', f
         ->and($user->is_active)->toBeTrue();
 });
 
+test('show and edit return json for the modal', function (): void {
+    $supervisor = CompanySupervisor::factory()->create(['company_id' => $this->company->id]);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/supervisors/{$supervisor->id}")
+        ->assertOk()
+        ->assertJsonPath('data.id', $supervisor->id)
+        ->assertJsonPath('data.company.id', $this->company->id);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/supervisors/{$supervisor->id}/edit")
+        ->assertOk()
+        ->assertJsonPath('data.user.email', $supervisor->user->email);
+});
+
+test('the supervisor create page route is removed', function (): void {
+    $this->actingAs($this->admin)->get('/master/supervisors/create')->assertNotFound();
+});
+
+test('supervisor create and update redirect to the index', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/master/supervisors', supervisorPayload($this->company))
+        ->assertRedirect('/master/supervisors');
+
+    $supervisor = CompanySupervisor::firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->put("/master/supervisors/{$supervisor->id}", supervisorPayload($this->company, ['name' => 'Baru']))
+        ->assertRedirect('/master/supervisors');
+});
+
 test('a failed create leaves no orphan user behind', function (): void {
     User::factory()->create(['email' => 'taken@dudi.test']);
     $before = User::count();
