@@ -1,13 +1,24 @@
-import { Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
+import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import {
+    StudentDetail,
+    type StudentRecord,
+} from '@/components/master/student-detail';
+import {
+    StudentFields,
+    type StudentValues,
+} from '@/components/master/student-form';
+import { DetailModal } from '@/components/shared/detail-modal';
+import { FormModal } from '@/components/shared/form-modal';
 import { RowActions } from '@/components/shared/row-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePermission } from '@/hooks/use-permission';
+import { useResource } from '@/hooks/use-resource';
 import { useTableQuery } from '@/hooks/use-table-query';
 import AppLayout from '@/layouts/app-layout';
 import type { Paginated, SelectOption, TableState } from '@/types/table';
@@ -33,6 +44,9 @@ type Props = {
     departments: SelectOption[];
 };
 
+type EditRecord = StudentRecord & { class_id: string };
+type Modal = { mode: 'create' | 'edit' | 'detail'; id?: string } | null;
+
 export default function StudentIndex({
     students,
     table,
@@ -42,6 +56,22 @@ export default function StudentIndex({
     const { can } = usePermission();
     const { search, setSearch, sortBy, filterBy, goToPage, setPerPage } =
         useTableQuery('/master/students', table);
+
+    const [modal, setModal] = useState<Modal>(null);
+
+    const detailUrl =
+        modal?.mode === 'detail' && modal.id
+            ? `/master/students/${modal.id}`
+            : null;
+    const editUrl =
+        modal?.mode === 'edit' && modal.id
+            ? `/master/students/${modal.id}/edit`
+            : null;
+
+    const detail = useResource<StudentRecord>(detailUrl);
+    const edit = useResource<EditRecord>(editUrl);
+
+    const close = () => setModal(null);
 
     const columns: Column<Student>[] = [
         {
@@ -56,12 +86,13 @@ export default function StudentIndex({
             header: 'Nama',
             sortable: true,
             cell: (row) => (
-                <Link
-                    href={`/master/students/${row.id}`}
+                <button
+                    type="button"
+                    onClick={() => setModal({ mode: 'detail', id: row.id })}
                     className="font-medium underline-offset-4 hover:underline"
                 >
                     {row.name}
-                </Link>
+                </button>
             ),
         },
         {
@@ -97,8 +128,8 @@ export default function StudentIndex({
             className: 'w-12',
             cell: (row) => (
                 <RowActions
-                    showHref={`/master/students/${row.id}`}
-                    editHref={`/master/students/${row.id}/edit`}
+                    onShow={() => setModal({ mode: 'detail', id: row.id })}
+                    onEdit={() => setModal({ mode: 'edit', id: row.id })}
                     deleteHref={`/master/students/${row.id}`}
                     deleteDescription={`Siswa "${row.name}" akan dihapus dan akun loginnya dinonaktifkan. Riwayat aktivitasnya tetap tersimpan.`}
                     canUpdate={can('students.update')}
@@ -132,11 +163,9 @@ export default function StudentIndex({
                     onFilterChange={filterBy}
                 >
                     {can('students.create') ? (
-                        <Button asChild>
-                            <Link href="/master/students/create">
-                                <Plus className="size-4" aria-hidden="true" />
-                                Tambah Siswa
-                            </Link>
+                        <Button onClick={() => setModal({ mode: 'create' })}>
+                            <Plus className="size-4" aria-hidden="true" />
+                            Tambah Siswa
                         </Button>
                     ) : null}
                 </DataTableToolbar>
@@ -156,6 +185,82 @@ export default function StudentIndex({
                     onPerPageChange={setPerPage}
                 />
             </div>
+
+            <FormModal<StudentValues>
+                open={modal?.mode === 'create'}
+                onOpenChange={(open) => !open && close()}
+                title="Tambah Siswa"
+                description="Buat data siswa dan akun loginnya"
+                action="/master/students"
+                method="post"
+                initialData={{
+                    nis: '',
+                    nisn: '',
+                    name: '',
+                    email: '',
+                    phone: '',
+                    class_id: '',
+                }}
+                submitLabel="Simpan"
+            >
+                {(fields) => (
+                    <StudentFields
+                        {...fields}
+                        classes={classes}
+                        mode="create"
+                    />
+                )}
+            </FormModal>
+
+            {edit.data ? (
+                <FormModal<StudentValues>
+                    open={modal?.mode === 'edit'}
+                    onOpenChange={(open) => !open && close()}
+                    title="Ubah Siswa"
+                    description="Perbarui data siswa"
+                    action={`/master/students/${edit.data.id}`}
+                    method="put"
+                    initialData={{
+                        nis: edit.data.nis,
+                        nisn: edit.data.nisn,
+                        name: edit.data.name,
+                        email: edit.data.user.email,
+                        phone: edit.data.phone ?? '',
+                        class_id: edit.data.class_id,
+                    }}
+                    submitLabel="Perbarui"
+                >
+                    {(fields) => (
+                        <StudentFields
+                            {...fields}
+                            classes={classes}
+                            mode="edit"
+                        />
+                    )}
+                </FormModal>
+            ) : null}
+
+            <DetailModal
+                open={modal?.mode === 'detail'}
+                onOpenChange={(open) => !open && close()}
+                title={detail.data?.name ?? 'Detail Siswa'}
+                description="Detail siswa peserta PKL"
+                loading={detail.loading}
+                error={detail.error}
+                footer={
+                    can('students.update') && detail.data ? (
+                        <Button
+                            onClick={() =>
+                                setModal({ mode: 'edit', id: detail.data!.id })
+                            }
+                        >
+                            Ubah
+                        </Button>
+                    ) : undefined
+                }
+            >
+                {detail.data ? <StudentDetail record={detail.data} /> : null}
+            </DetailModal>
         </AppLayout>
     );
 }

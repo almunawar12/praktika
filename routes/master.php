@@ -34,6 +34,7 @@ Route::middleware('auth')->prefix('master')->name('master.')->group(function ():
         ->middleware('can:companies.viewAny');
 
     Route::resource('students', StudentController::class)
+        ->except('create')
         ->middleware('can:students.viewAny');
 
     Route::resource('supervisors', CompanySupervisorController::class)

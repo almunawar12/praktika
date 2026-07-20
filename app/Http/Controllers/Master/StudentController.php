@@ -13,6 +13,7 @@ use App\Models\Department;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Services\StudentService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -37,25 +38,16 @@ class StudentController extends Controller
         ]);
     }
 
-    public function create(): Response
-    {
-        $this->authorize('create', Student::class);
-
-        return Inertia::render('master/students/create', [
-            'classes' => $this->classOptions(),
-        ]);
-    }
-
     public function store(StoreStudentRequest $request): RedirectResponse
     {
-        $student = $this->students->create(StudentData::fromRequest($request));
+        $this->students->create(StudentData::fromRequest($request));
 
         return redirect()
-            ->route('master.students.show', $student)
+            ->route('master.students.index')
             ->with('success', 'Siswa berhasil ditambahkan. Akun login dibuat — minta siswa melakukan reset kata sandi untuk mengaktifkannya.');
     }
 
-    public function show(Student $student): Response
+    public function show(Student $student): JsonResponse
     {
         $this->authorize('view', $student);
 
@@ -65,20 +57,27 @@ class StudentController extends Controller
             'schoolClass.department:id,code,name',
         ]);
 
-        return Inertia::render('master/students/show', [
-            'student' => $student,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $student,
         ]);
     }
 
-    public function edit(Student $student): Response
+    public function edit(Student $student): JsonResponse
     {
         $this->authorize('update', $student);
 
-        $student->load('user:id,email');
+        $student->load([
+            'user:id,email',
+            'schoolClass:id,name,department_id',
+            'schoolClass.department:id,code,name',
+        ]);
 
-        return Inertia::render('master/students/edit', [
-            'student' => $student,
-            'classes' => $this->classOptions(),
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $student,
         ]);
     }
 
@@ -87,7 +86,7 @@ class StudentController extends Controller
         $this->students->update($student, StudentData::fromRequest($request));
 
         return redirect()
-            ->route('master.students.show', $student)
+            ->route('master.students.index')
             ->with('success', 'Siswa berhasil diperbarui.');
     }
 

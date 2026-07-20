@@ -43,6 +43,41 @@ test('creating a student also creates a siswa login account', function (): void 
         ->and($user->is_active)->toBeTrue();
 });
 
+test('show and edit return json for the modal', function (): void {
+    $student = Student::factory()->create(['class_id' => $this->class->id, 'nis' => '555']);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/students/{$student->id}")
+        ->assertOk()
+        ->assertJsonPath('data.nis', '555')
+        ->assertJsonPath('data.school_class.id', $this->class->id)
+        ->assertJsonPath('data.user.email', $student->user->email);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/students/{$student->id}/edit")
+        ->assertOk()
+        ->assertJsonPath('data.school_class.id', $this->class->id);
+});
+
+test('the student create page route is removed', function (): void {
+    $this->actingAs($this->admin)->get('/master/students/create')->assertNotFound();
+});
+
+test('student create and update redirect to the index', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/master/students', studentPayload($this->class))
+        ->assertRedirect('/master/students');
+
+    $student = Student::firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->put("/master/students/{$student->id}", studentPayload($this->class, [
+            'email' => $student->user->email,
+            'name' => 'Baru',
+        ]))
+        ->assertRedirect('/master/students');
+});
+
 test('the generated password is random, not a shared default', function (): void {
     $this->actingAs($this->admin)
         ->post('/master/students', studentPayload($this->class));
