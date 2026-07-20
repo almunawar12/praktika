@@ -49,7 +49,7 @@ function NavLink({ item, currentUrl }: { item: NavItem; currentUrl: string }) {
             className={cn(
                 baseClasses,
                 active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    ? 'bg-blue-600/10 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
             )}
         >
