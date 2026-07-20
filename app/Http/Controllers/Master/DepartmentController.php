@@ -10,6 +10,7 @@ use App\Http\Requests\Master\StoreDepartmentRequest;
 use App\Http\Requests\Master\UpdateDepartmentRequest;
 use App\Models\Department;
 use App\Services\DepartmentService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -32,40 +33,37 @@ class DepartmentController extends Controller
         ]);
     }
 
-    public function create(): Response
-    {
-        $this->authorize('create', Department::class);
-
-        return Inertia::render('master/departments/create');
-    }
-
     public function store(StoreDepartmentRequest $request): RedirectResponse
     {
-        $department = $this->departments->create($request->validated());
+        $this->departments->create($request->validated());
 
         return redirect()
-            ->route('master.departments.show', $department)
+            ->route('master.departments.index')
             ->with('success', 'Jurusan berhasil ditambahkan.');
     }
 
-    public function show(Department $department): Response
+    public function show(Department $department): JsonResponse
     {
         $this->authorize('view', $department);
 
         $department->loadCount('schoolClasses');
         $department->load('schoolClasses:id,department_id,name');
 
-        return Inertia::render('master/departments/show', [
-            'department' => $department,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $department,
         ]);
     }
 
-    public function edit(Department $department): Response
+    public function edit(Department $department): JsonResponse
     {
         $this->authorize('update', $department);
 
-        return Inertia::render('master/departments/edit', [
-            'department' => $department,
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => $department,
         ]);
     }
 
@@ -74,7 +72,7 @@ class DepartmentController extends Controller
         $this->departments->update($department, $request->validated());
 
         return redirect()
-            ->route('master.departments.show', $department)
+            ->route('master.departments.index')
             ->with('success', 'Jurusan berhasil diperbarui.');
     }
 

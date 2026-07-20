@@ -26,9 +26,42 @@ test('admin can list departments', function (): void {
 test('admin can create a department', function (): void {
     $this->actingAs($this->admin)
         ->post('/master/departments', ['code' => 'RPL', 'name' => 'Rekayasa Perangkat Lunak'])
-        ->assertRedirect();
+        ->assertRedirect('/master/departments');
 
     $this->assertDatabaseHas('departments', ['code' => 'RPL']);
+});
+
+test('show returns json for the modal', function (): void {
+    $department = Department::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/departments/{$department->id}")
+        ->assertOk()
+        ->assertJsonPath('data.id', $department->id)
+        ->assertJsonPath('data.name', $department->name);
+});
+
+test('edit returns json for the modal', function (): void {
+    $department = Department::factory()->create(['code' => 'RPL']);
+
+    $this->actingAs($this->admin)
+        ->getJson("/master/departments/{$department->id}/edit")
+        ->assertOk()
+        ->assertJsonPath('data.code', 'RPL');
+});
+
+test('the create page route is removed', function (): void {
+    $this->actingAs($this->admin)
+        ->get('/master/departments/create')
+        ->assertNotFound();
+});
+
+test('update redirects to the index', function (): void {
+    $department = Department::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->put("/master/departments/{$department->id}", ['code' => 'TKJ', 'name' => 'Teknik Komputer'])
+        ->assertRedirect('/master/departments');
 });
 
 test('department code must be unique', function (): void {
@@ -87,7 +120,6 @@ test('a guru may read departments but not change them', function (): void {
     $this->actingAs($guru)->get('/master/departments')->assertOk();
     $this->actingAs($guru)->get("/master/departments/{$department->id}")->assertOk();
 
-    $this->actingAs($guru)->get('/master/departments/create')->assertForbidden();
     $this->actingAs($guru)
         ->put("/master/departments/{$department->id}", ['code' => 'Z', 'name' => 'Z'])
         ->assertForbidden();

@@ -18,6 +18,9 @@ export type FieldsProps<T> = {
     errors: Partial<Record<keyof T, string>>;
 };
 
+/** Flat, form-convertible shape Inertia's useForm accepts. */
+type FormShape = Record<string, string | number | boolean | null | undefined>;
+
 type FormModalProps<T extends Record<string, unknown>> = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -45,7 +48,7 @@ export function FormModal<T extends Record<string, unknown>>({
     confirmDescription = 'Pastikan data sudah benar sebelum disimpan.',
     children,
 }: FormModalProps<T>) {
-    const form = useForm<T>(initialData);
+    const form = useForm<FormShape>(initialData as FormShape);
     const [confirming, setConfirming] = useState(false);
 
     const submit = () => {
@@ -101,8 +104,14 @@ export function FormModal<T extends Record<string, unknown>>({
                         }}
                     >
                         {children({
-                            data: form.data,
-                            setData: (key, value) => form.setData(key, value),
+                            data: form.data as T,
+                            setData: (key, value) =>
+                                (
+                                    form.setData as (
+                                        k: string,
+                                        v: unknown,
+                                    ) => void
+                                )(key as string, value),
                             errors: form.errors as Partial<
                                 Record<keyof T, string>
                             >,

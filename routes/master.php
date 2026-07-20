@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth')->prefix('master')->name('master.')->group(function (): void {
     Route::resource('departments', DepartmentController::class)
+        ->except('create')
         ->middleware('can:departments.viewAny');
 
     Route::resource('classes', SchoolClassController::class)
