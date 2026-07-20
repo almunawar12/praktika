@@ -1,7 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
+import { useLayoutEffect, useRef } from 'react';
 import { NavIcon } from '@/components/layout/nav-icon';
 import { cn } from '@/lib/utils';
 import type { NavGroup, NavItem } from '@/types';
+
+const SCROLL_KEY = 'sidebar-nav-scroll';
 
 function isActive(href: string | null, currentUrl: string): boolean {
     if (href === null) {
@@ -60,12 +63,47 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     const page = usePage();
     const groups: NavGroup[] = page.props.sidebar;
 
+    // The layout is not persistent, so this panel remounts on every navigation and
+    // its scroll would jump back to the top. Persisting the offset keeps the panel
+    // where the user left it, so the active row stays in view. Only the desktop rail
+    // (no `onNavigate`) persists — the mobile sheet closes on navigate anyway, and
+    // sharing the key would let its scroll clobber the rail's.
+    const navRef = useRef<HTMLElement>(null);
+    const persist = onNavigate === undefined;
+
+    useLayoutEffect(() => {
+        if (!persist) {
+            return;
+        }
+
+        const el = navRef.current;
+
+        if (el === null) {
+            return;
+        }
+
+        const saved = sessionStorage.getItem(SCROLL_KEY);
+
+        if (saved !== null) {
+            el.scrollTop = Number(saved);
+        }
+
+        const onScroll = () => {
+            sessionStorage.setItem(SCROLL_KEY, String(el.scrollTop));
+        };
+
+        el.addEventListener('scroll', onScroll, { passive: true });
+
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [persist]);
+
     return (
         // `flex-1 overflow-y-auto` is what makes the nav reachable: both callers pin
         // the panel to the viewport height, and the menu is taller than a short
         // laptop screen — without an internal scroller the bottom groups can't be
         // reached at all, since page scroll doesn't move a fixed panel.
         <nav
+            ref={navRef}
             className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-4"
             onClick={onNavigate}
         >
