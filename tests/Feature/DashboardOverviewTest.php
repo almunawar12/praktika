@@ -194,7 +194,7 @@ test('pending journals list the four newest with student, class, and company', f
             ->where('overview.pendingJournals.0.student', $placement->student->name)
             ->where('overview.pendingJournals.0.className', $placement->student->schoolClass->name)
             ->where('overview.pendingJournals.0.company', $placement->company->name)
-            ->where('overview.pendingJournals.0.submittedAt', '2026-07-14T08:00:00+00:00')
+            ->where('overview.pendingJournals.0.submittedAt', CarbonImmutable::parse('2026-07-14 08:00:00')->toIso8601String())
         );
 });
 
