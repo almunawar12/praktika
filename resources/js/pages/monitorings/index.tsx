@@ -44,9 +44,10 @@ type Props = {
 };
 
 function formatDate(iso: string): string {
-    return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(
-        new Date(iso),
-    );
+    return new Intl.DateTimeFormat('id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(iso));
 }
 
 export default function MonitoringIndex({

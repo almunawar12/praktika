@@ -25,7 +25,7 @@ class UpdateMonitoringRequest extends FormRequest
             // The placement is fixed at creation: moving a report to another PKL
             // would rewrite whose visit it was.
             'placement_id' => ['prohibited'],
-            'visit_date' => ['required', 'date', 'before_or_equal:today'],
+            'visit_date' => ['required', 'date', 'before_or_equal:now'],
             'note' => ['required', 'string', 'min:10', 'max:2000'],
             'recommendation' => ['nullable', 'string', 'max:2000'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],

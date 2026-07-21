@@ -53,7 +53,7 @@ class Monitoring extends Model
      */
     protected function casts(): array
     {
-        return ['visit_date' => 'immutable_date'];
+        return ['visit_date' => 'immutable_datetime'];
     }
 
     public function getActivitylogOptions(): LogOptions

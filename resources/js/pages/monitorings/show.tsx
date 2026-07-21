@@ -37,9 +37,10 @@ type Props = {
 };
 
 function formatDate(iso: string): string {
-    return new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(
-        new Date(iso),
-    );
+    return new Intl.DateTimeFormat('id-ID', {
+        dateStyle: 'full',
+        timeStyle: 'short',
+    }).format(new Date(iso));
 }
 
 export default function MonitoringShow({ monitoring, can }: Props) {

@@ -28,7 +28,7 @@ class StoreMonitoringRequest extends FormRequest
             ],
             // The service re-checks the placement status and period; this only stops
             // the obviously impossible before it gets that far.
-            'visit_date' => ['required', 'date', 'before_or_equal:today'],
+            'visit_date' => ['required', 'date', 'before_or_equal:now'],
             'note' => ['required', 'string', 'min:10', 'max:2000'],
             'recommendation' => ['nullable', 'string', 'max:2000'],
             // Optional evidence, never a gate — a teacher filing from school must
