@@ -27,10 +27,11 @@ class RolePolicy
 
     public function update(User $user, Role $role): bool
     {
-        // The five built-in roles are referenced by name throughout the codebase
-        // (RoleName enum, PermissionCatalog, sidebar). Renaming one would silently
-        // break every one of those lookups.
-        if ($this->isBuiltIn($role)) {
+        // The Super Admin role is the last line of control — editing its permissions
+        // could strip away the very rights that keep an admin in charge, so it stays
+        // locked. Other built-ins are only ever re-permissioned here (never renamed —
+        // the update action syncs permissions only), so their access is safe to edit.
+        if ($role->name === RoleName::SuperAdmin->value) {
             return false;
         }
 

@@ -193,7 +193,8 @@ export default function RoleIndex({ roles, can }: Props) {
                                                     <Link
                                                         href={`/system/roles/${role.id}/edit`}
                                                     >
-                                                        {role.is_built_in
+                                                        {role.name ===
+                                                        'super-admin'
                                                             ? 'Lihat'
                                                             : 'Kelola'}
                                                     </Link>

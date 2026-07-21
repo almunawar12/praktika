@@ -37,15 +37,34 @@ test('a duplicate role name is rejected', function (): void {
         ->assertSessionHasErrors('name');
 });
 
-test('a built-in role can not be edited or deleted', function (): void {
+test('a super admin can edit the access of a built-in role', function (): void {
     $admin = userWithRole(RoleName::SuperAdmin);
     $builtIn = Role::where('name', RoleName::Siswa->value)->sole();
 
     $this->actingAs($admin)
-        ->put("/system/roles/{$builtIn->id}", ['permissions' => []])
-        ->assertForbidden();
+        ->put("/system/roles/{$builtIn->id}", ['permissions' => ['reports.attendance']])
+        ->assertSessionHasNoErrors();
+
+    expect($builtIn->fresh()->permissions->pluck('name')->all())
+        ->toBe(['reports.attendance']);
+});
+
+test('a built-in role still can not be renamed away or deleted', function (): void {
+    $admin = userWithRole(RoleName::SuperAdmin);
+    $builtIn = Role::where('name', RoleName::Siswa->value)->sole();
 
     $this->actingAs($admin)->delete("/system/roles/{$builtIn->id}")->assertForbidden();
+});
+
+test('the super admin role itself can not have its access edited', function (): void {
+    $admin = userWithRole(RoleName::SuperAdmin);
+    $superAdmin = Role::where('name', RoleName::SuperAdmin->value)->sole();
+
+    $this->actingAs($admin)
+        ->put("/system/roles/{$superAdmin->id}", ['permissions' => []])
+        ->assertForbidden();
+
+    $this->actingAs($admin)->delete("/system/roles/{$superAdmin->id}")->assertForbidden();
 });
 
 test('only real permissions from the catalogue may be granted', function (): void {
