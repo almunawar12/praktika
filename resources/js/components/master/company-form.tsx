@@ -1,9 +1,12 @@
+import { LoaderCircle, MapPin } from 'lucide-react';
 import { Field } from '@/components/shared/field';
 import type { FieldsProps } from '@/components/shared/form-modal';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useGeolocation } from '@/hooks/use-geolocation';
 
 export type CompanyValues = {
     name: string;
@@ -23,6 +26,17 @@ export function CompanyFields({
     setData,
     errors,
 }: FieldsProps<CompanyValues>) {
+    const geo = useGeolocation();
+
+    const useCurrentLocation = async () => {
+        const coords = await geo.request();
+
+        if (coords !== null) {
+            setData('latitude', coords.latitude.toFixed(6));
+            setData('longitude', coords.longitude.toFixed(6));
+        }
+    };
+
     return (
         <>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -142,14 +156,38 @@ export function CompanyFields({
             </Field>
 
             <div className="grid gap-4 rounded-lg border p-3">
-                <div className="grid gap-0.5">
-                    <p className="text-sm font-medium">Lokasi Absensi</p>
-                    <p className="text-xs text-muted-foreground">
-                        Opsional. Jika diisi, siswa hanya dapat absen dalam
-                        radius ini. Kosongkan jika perusahaan tidak menerapkan
-                        batas lokasi.
-                    </p>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="grid gap-0.5">
+                        <p className="text-sm font-medium">Lokasi Absensi</p>
+                        <p className="text-xs text-muted-foreground">
+                            Opsional. Ambil lokasi saat ini atau isi manual. Jika
+                            diisi, siswa hanya dapat absen dalam radius ini.
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={useCurrentLocation}
+                        disabled={geo.loading}
+                    >
+                        {geo.loading ? (
+                            <LoaderCircle
+                                className="size-4 animate-spin"
+                                aria-hidden="true"
+                            />
+                        ) : (
+                            <MapPin className="size-4" aria-hidden="true" />
+                        )}
+                        Ambil Lokasi Sekarang
+                    </Button>
                 </div>
+
+                {geo.error ? (
+                    <p role="alert" className="text-xs text-destructive">
+                        {geo.error}
+                    </p>
+                ) : null}
 
                 <div className="grid gap-4 sm:grid-cols-3">
                     <Field
