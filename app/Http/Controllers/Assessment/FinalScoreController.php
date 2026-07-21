@@ -41,10 +41,7 @@ class FinalScoreController extends Controller
             ->when($table->filter('grade'), fn ($query, string $g) => $query->where('grade', $g))
             ->when($table->filter('state') === 'published', fn ($query) => $query->published())
             ->when($table->filter('state') === 'draft', fn ($query) => $query->whereNull('published_at'))
-            ->orderBy(
-                $table->sortColumn(['final_score', 'grade', 'created_at'], 'final_score'),
-                $table->sortDirection(),
-            )
+            ->orderBy(...$table->sortOrder(['final_score', 'grade', 'created_at']))
             ->paginate($table->perPage)
             ->withQueryString();
 

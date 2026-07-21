@@ -71,7 +71,7 @@ class AttendanceService
             ->when($table->filter('verification_status'), fn ($query, string $s) => $query
                 ->where('verification_status', $s))
             ->when($table->filter('date'), fn ($query, string $date) => $query->whereDate('date', $date))
-            ->orderBy($table->sortColumn(self::SORTABLE, 'date'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

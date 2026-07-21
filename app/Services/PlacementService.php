@@ -70,7 +70,7 @@ class PlacementService
             ->when($table->filter('status'), fn ($query, string $status) => $query->where('status', $status))
             ->when($table->filter('company_id'), fn ($query, string $id) => $query->where('company_id', $id))
             ->when($table->filter('teacher_id'), fn ($query, string $id) => $query->where('teacher_id', $id))
-            ->orderBy($table->sortColumn(self::SORTABLE, 'start_date'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

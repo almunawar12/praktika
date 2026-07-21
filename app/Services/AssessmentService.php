@@ -74,7 +74,7 @@ class AssessmentService
             ->when($table->filter('type'), fn ($query, string $type) => $query->where('type', $type))
             ->when($table->filter('state') === 'draft', fn ($query) => $query->whereNull('submitted_at'))
             ->when($table->filter('state') === 'submitted', fn ($query) => $query->submitted())
-            ->orderBy($table->sortColumn(self::SORTABLE, 'created_at'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

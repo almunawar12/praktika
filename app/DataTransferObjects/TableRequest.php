@@ -77,6 +77,23 @@ final readonly class TableRequest
         return $this->direction === 'desc' ? 'desc' : 'asc';
     }
 
+    /**
+     * The `[column, direction]` for a list's ORDER BY. When the user has chosen a
+     * sortable column it wins; otherwise the list falls back to newest-first, so
+     * freshly created rows sit at the top of every table.
+     *
+     * @param  array<int, string>  $allowed
+     * @return array{0: string, 1: 'asc'|'desc'}
+     */
+    public function sortOrder(array $allowed): array
+    {
+        if (in_array($this->sort, $allowed, true)) {
+            return [(string) $this->sort, $this->sortDirection()];
+        }
+
+        return ['created_at', 'desc'];
+    }
+
     public function filter(string $key): ?string
     {
         return $this->filters[$key] ?? null;

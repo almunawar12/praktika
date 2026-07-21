@@ -56,7 +56,7 @@ class CompanyService
             ->when($table->filter('is_active'), function ($query, string $value): void {
                 $query->where('is_active', $value === 'active');
             })
-            ->orderBy($table->sortColumn(self::SORTABLE, 'name'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

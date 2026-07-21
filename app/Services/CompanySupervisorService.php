@@ -59,7 +59,7 @@ class CompanySupervisorService
             ->when($table->filter('company_id'), fn ($query, string $id) => $query->where('company_id', $id))
             ->when($table->filter('is_active'), fn ($query, string $value) => $query
                 ->whereHas('user', fn ($q) => $q->where('is_active', $value === 'active')))
-            ->orderBy($table->sortColumn(self::SORTABLE, 'name'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

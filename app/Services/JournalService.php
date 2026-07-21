@@ -72,7 +72,7 @@ class JournalService
             // "Needs my review" is the query both reviewers actually want.
             ->when($table->filter('queue') === 'industry', fn ($query) => $query->pendingForIndustry())
             ->when($table->filter('queue') === 'teacher', fn ($query) => $query->pendingForTeacher())
-            ->orderBy($table->sortColumn(self::SORTABLE, 'date'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

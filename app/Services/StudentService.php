@@ -66,7 +66,7 @@ class StudentService
             )
             ->when($table->filter('department_id'), fn ($query, string $id) => $query
                 ->whereHas('schoolClass', fn ($query) => $query->where('department_id', $id)))
-            ->orderBy($table->sortColumn(self::SORTABLE, 'name'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

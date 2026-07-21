@@ -73,7 +73,7 @@ class UserService
                 ->whereHas('roles', fn (Builder $q) => $q->where('name', $role)))
             ->when($table->filter('status'), fn (Builder $query, string $status) => $query
                 ->where('is_active', $status === 'active'))
-            ->orderBy($table->sortColumn(self::SORTABLE, 'name'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

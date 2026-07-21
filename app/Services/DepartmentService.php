@@ -50,7 +50,7 @@ class DepartmentService
                         ->orWhere('code', 'ilike', "%{$search}%");
                 });
             })
-            ->orderBy($table->sortColumn(self::SORTABLE, 'name'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

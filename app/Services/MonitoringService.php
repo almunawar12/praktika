@@ -88,7 +88,7 @@ class MonitoringService
                 ->where('placement_id', $id))
             ->when($table->filter('teacher_id'), fn ($query, string $id) => $query
                 ->where('teacher_id', $id))
-            ->orderBy($table->sortColumn(self::SORTABLE, 'visit_date'), $table->sortDirection())
+            ->orderBy(...$table->sortOrder(self::SORTABLE))
             ->paginate($table->perPage)
             ->withQueryString();
     }

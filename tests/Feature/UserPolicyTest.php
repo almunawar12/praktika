@@ -63,12 +63,20 @@ test('a siswa can view their own profile but not other users', function (): void
         ->and($siswa->can('update', $other))->toBeFalse();
 });
 
-test('built-in roles can not be renamed or deleted', function (): void {
+test('built-in roles can have their access edited but not be deleted', function (): void {
     $superAdmin = userWithRole(RoleName::SuperAdmin);
     $builtIn = Role::where('name', RoleName::Siswa->value)->firstOrFail();
 
-    expect($superAdmin->can('update', $builtIn))->toBeFalse()
+    expect($superAdmin->can('update', $builtIn))->toBeTrue()
         ->and($superAdmin->can('delete', $builtIn))->toBeFalse();
+});
+
+test('the super admin role stays locked from edits and deletion', function (): void {
+    $superAdmin = userWithRole(RoleName::SuperAdmin);
+    $role = Role::where('name', RoleName::SuperAdmin->value)->firstOrFail();
+
+    expect($superAdmin->can('update', $role))->toBeFalse()
+        ->and($superAdmin->can('delete', $role))->toBeFalse();
 });
 
 test('a custom role remains editable', function (): void {
