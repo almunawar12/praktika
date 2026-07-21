@@ -1,15 +1,9 @@
 import { Info } from 'lucide-react';
+import { Combobox } from '@/components/shared/combobox';
 import { Field } from '@/components/shared/field';
 import type { FieldsProps } from '@/components/shared/form-modal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import type { SelectOption } from '@/types/table';
 
 export type SupervisorValues = {
@@ -53,24 +47,15 @@ export function SupervisorFields({
                 error={errors.company_id}
                 required
             >
-                <Select
+                <Combobox
+                    id="company_id"
                     value={data.company_id}
                     onValueChange={(value) => setData('company_id', value)}
-                >
-                    <SelectTrigger
-                        id="company_id"
-                        aria-invalid={Boolean(errors.company_id)}
-                    >
-                        <SelectValue placeholder="Pilih perusahaan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {companies.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                    options={companies}
+                    placeholder="Pilih perusahaan"
+                    searchPlaceholder="Cari perusahaan..."
+                    aria-invalid={Boolean(errors.company_id)}
+                />
             </Field>
 
             <Field id="name" label="Nama" error={errors.name} required>

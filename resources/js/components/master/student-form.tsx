@@ -1,15 +1,9 @@
 import { Info } from 'lucide-react';
+import { Combobox } from '@/components/shared/combobox';
 import { Field } from '@/components/shared/field';
 import type { FieldsProps } from '@/components/shared/form-modal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import type { SelectOption } from '@/types/table';
 
 export type StudentValues = {
@@ -116,24 +110,15 @@ export function StudentFields({ data, setData, errors, classes, mode }: Props) {
             </div>
 
             <Field id="class_id" label="Kelas" error={errors.class_id} required>
-                <Select
+                <Combobox
+                    id="class_id"
                     value={data.class_id}
                     onValueChange={(value) => setData('class_id', value)}
-                >
-                    <SelectTrigger
-                        id="class_id"
-                        aria-invalid={Boolean(errors.class_id)}
-                    >
-                        <SelectValue placeholder="Pilih kelas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {classes.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                    options={classes}
+                    placeholder="Pilih kelas"
+                    searchPlaceholder="Cari kelas..."
+                    aria-invalid={Boolean(errors.class_id)}
+                />
             </Field>
         </>
     );

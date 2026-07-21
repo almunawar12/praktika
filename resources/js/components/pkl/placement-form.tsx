@@ -1,15 +1,9 @@
 import { Info } from 'lucide-react';
+import { Combobox } from '@/components/shared/combobox';
 import { Field } from '@/components/shared/field';
 import type { FieldsProps } from '@/components/shared/form-modal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import type { SelectOption } from '@/types/table';
 
 export type PlacementValues = {
@@ -50,18 +44,15 @@ function SelectField({
 }) {
     return (
         <Field id={id} label={label} error={error} required>
-            <Select value={value} onValueChange={onChange}>
-                <SelectTrigger id={id} aria-invalid={Boolean(error)}>
-                    <SelectValue placeholder={placeholder} />
-                </SelectTrigger>
-                <SelectContent>
-                    {options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+            <Combobox
+                id={id}
+                value={value}
+                onValueChange={onChange}
+                options={options}
+                placeholder={placeholder}
+                searchPlaceholder={`${placeholder}...`}
+                aria-invalid={Boolean(error)}
+            />
         </Field>
     );
 }

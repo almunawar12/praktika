@@ -6,6 +6,11 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+    // cmdk pulls its own React through Radix; without deduping, the bundle ends up
+    // with two React instances and hooks throw "Invalid hook call".
+    resolve: {
+        dedupe: ['react', 'react-dom'],
+    },
     plugins: [
         laravel({
             // Geist ships through @fontsource-variable/geist and is imported from
