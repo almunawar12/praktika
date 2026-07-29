@@ -10,14 +10,13 @@ import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
 import { TablePager } from '@/components/data-table/table-pager';
-import { UserFields, type UserValues } from '@/components/system/user-form';
-import {
-    UserModerationActions,
-    type UserAbilities,
-} from '@/components/system/user-moderation-actions';
 import { DeleteDialog } from '@/components/shared/delete-dialog';
 import { FormModal } from '@/components/shared/form-modal';
 import { StatCard } from '@/components/shared/stat-card';
+import { UserFields } from '@/components/system/user-form';
+import type { UserValues } from '@/components/system/user-form';
+import { UserModerationActions } from '@/components/system/user-moderation-actions';
+import type { UserAbilities } from '@/components/system/user-moderation-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -311,7 +310,7 @@ export default function UserIndex({
 
                                 <div className="relative sm:w-60">
                                     <Search
-                                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                                         aria-hidden="true"
                                     />
                                     <Input

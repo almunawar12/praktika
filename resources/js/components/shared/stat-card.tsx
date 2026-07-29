@@ -41,7 +41,7 @@ export function StatCard({
                     <span className="text-sm text-muted-foreground">
                         {label}
                     </span>
-                    <span className="text-2xl font-semibold tabular-nums leading-none">
+                    <span className="text-2xl leading-none font-semibold tabular-nums">
                         {value}
                     </span>
                     {hint ? (

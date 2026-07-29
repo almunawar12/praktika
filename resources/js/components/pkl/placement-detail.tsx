@@ -1,13 +1,9 @@
 import { Link } from '@inertiajs/react';
 import { Ban } from 'lucide-react';
-import {
-    PlacementActions,
-    type PlacementAbilities,
-} from '@/components/pkl/placement-actions';
-import {
-    PlacementStatusBadge,
-    type PlacementStatus,
-} from '@/components/pkl/placement-status-badge';
+import { PlacementActions } from '@/components/pkl/placement-actions';
+import type { PlacementAbilities } from '@/components/pkl/placement-actions';
+import { PlacementStatusBadge } from '@/components/pkl/placement-status-badge';
+import type { PlacementStatus } from '@/components/pkl/placement-status-badge';
 import { DetailItem } from '@/components/shared/field';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';

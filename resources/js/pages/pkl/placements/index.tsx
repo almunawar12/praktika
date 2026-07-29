@@ -11,15 +11,15 @@ import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
 import { TablePager } from '@/components/data-table/table-pager';
-import {
-    PlacementDetail,
-    type PlacementDetailData,
-    type PlacementRecord,
+import { PlacementDetail } from '@/components/pkl/placement-detail';
+import type {
+    PlacementDetailData,
+    PlacementRecord,
 } from '@/components/pkl/placement-detail';
-import {
-    PlacementFields,
-    type PlacementFormOptions,
-    type PlacementValues,
+import { PlacementFields } from '@/components/pkl/placement-form';
+import type {
+    PlacementFormOptions,
+    PlacementValues,
 } from '@/components/pkl/placement-form';
 import { PlacementStatusBadge } from '@/components/pkl/placement-status-badge';
 import type { PlacementStatus } from '@/components/pkl/placement-status-badge';
@@ -93,7 +93,6 @@ export default function PlacementIndex({
     table,
     statuses,
     companies,
-    teachers,
     stats,
 }: Props) {
     const { can } = usePermission();
@@ -329,7 +328,7 @@ export default function PlacementIndex({
 
                                 <div className="relative sm:w-60">
                                     <Search
-                                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                                         aria-hidden="true"
                                     />
                                     <Input

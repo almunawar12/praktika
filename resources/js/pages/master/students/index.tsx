@@ -12,14 +12,10 @@ import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
 import { TablePager } from '@/components/data-table/table-pager';
-import {
-    StudentDetail,
-    type StudentRecord,
-} from '@/components/master/student-detail';
-import {
-    StudentFields,
-    type StudentValues,
-} from '@/components/master/student-form';
+import { StudentDetail } from '@/components/master/student-detail';
+import type { StudentRecord } from '@/components/master/student-detail';
+import { StudentFields } from '@/components/master/student-form';
+import type { StudentValues } from '@/components/master/student-form';
 import { DeleteDialog } from '@/components/shared/delete-dialog';
 import { DetailModal } from '@/components/shared/detail-modal';
 import { FormModal } from '@/components/shared/form-modal';
@@ -87,9 +83,10 @@ export default function StudentIndex({
         useTableQuery('/master/students', table);
 
     const [modal, setModal] = useState<Modal>(null);
-    const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(
-        null,
-    );
+    const [deleting, setDeleting] = useState<{
+        id: string;
+        name: string;
+    } | null>(null);
 
     const detailUrl =
         modal?.mode === 'detail' && modal.id
@@ -177,7 +174,9 @@ export default function StudentIndex({
                             variant="ghost"
                             size="icon"
                             className="size-8 text-muted-foreground hover:text-foreground"
-                            onClick={() => setModal({ mode: 'edit', id: row.id })}
+                            onClick={() =>
+                                setModal({ mode: 'edit', id: row.id })
+                            }
                         >
                             <Pencil className="size-4" aria-hidden="true" />
                             <span className="sr-only">Ubah {row.name}</span>
@@ -332,7 +331,7 @@ export default function StudentIndex({
 
                                 <div className="relative sm:w-64">
                                     <Search
-                                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                                         aria-hidden="true"
                                     />
                                     <Input

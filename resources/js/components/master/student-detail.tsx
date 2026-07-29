@@ -43,7 +43,9 @@ export function StudentDetail({ record }: { record: StudentRecord }) {
                     <DetailItem label="Nama">{record.name}</DetailItem>
                     <DetailItem label="No HP">{record.phone ?? '—'}</DetailItem>
                     <DetailItem label="Kelas">
-                        <Link href={`/master/classes/${record.school_class.id}`}>
+                        <Link
+                            href={`/master/classes/${record.school_class.id}`}
+                        >
                             <Badge variant="outline">
                                 {record.school_class.name}
                             </Badge>

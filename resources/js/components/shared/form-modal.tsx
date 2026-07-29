@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,6 +62,7 @@ export function FormModal<T extends Record<string, unknown>>({
             },
             onError: () => setConfirming(false),
         };
+
         if (method === 'post') {
             form.post(action, options);
         } else {
@@ -84,6 +86,7 @@ export function FormModal<T extends Record<string, unknown>>({
                     if (!next) {
                         form.reset();
                     }
+
                     onOpenChange(next);
                 }}
             >

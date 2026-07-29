@@ -75,7 +75,10 @@ export function UserFields({
                         value={data.role}
                         onValueChange={(value) => setData('role', value)}
                     >
-                        <SelectTrigger id="role" aria-invalid={Boolean(errors.role)}>
+                        <SelectTrigger
+                            id="role"
+                            aria-invalid={Boolean(errors.role)}
+                        >
                             <SelectValue placeholder="Pilih role" />
                         </SelectTrigger>
                         <SelectContent>

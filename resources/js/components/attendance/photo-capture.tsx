@@ -19,7 +19,12 @@ export function PhotoCapture({ onCapture, error }: Props) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
-    const [cameraError, setCameraError] = useState<string | null>(null);
+    const cameraSupported = !!navigator.mediaDevices?.getUserMedia;
+    const [cameraError, setCameraError] = useState<string | null>(() =>
+        cameraSupported
+            ? null
+            : 'Kamera tidak tersedia di perangkat atau browser ini.',
+    );
 
     const stopStream = () => {
         streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -29,19 +34,11 @@ export function PhotoCapture({ onCapture, error }: Props) {
     // Runs the camera whenever there is no captured photo showing. Retaking clears
     // the preview, which re-runs this and restarts the stream.
     useEffect(() => {
-        if (preview !== null) {
+        if (preview !== null || !cameraSupported) {
             return;
         }
 
         let cancelled = false;
-
-        if (!navigator.mediaDevices?.getUserMedia) {
-            setCameraError(
-                'Kamera tidak tersedia di perangkat atau browser ini.',
-            );
-
-            return;
-        }
 
         navigator.mediaDevices
             .getUserMedia({
@@ -74,7 +71,7 @@ export function PhotoCapture({ onCapture, error }: Props) {
             cancelled = true;
             stopStream();
         };
-    }, [preview]);
+    }, [preview, cameraSupported]);
 
     // Release the camera when the component goes away.
     useEffect(() => stopStream, []);
@@ -178,7 +175,8 @@ export function PhotoCapture({ onCapture, error }: Props) {
                         Ambil Foto
                     </Button>
                     <span className="text-center text-xs text-muted-foreground">
-                        Foto diambil langsung dari kamera sebagai bukti kehadiran.
+                        Foto diambil langsung dari kamera sebagai bukti
+                        kehadiran.
                     </span>
                 </div>
             )}

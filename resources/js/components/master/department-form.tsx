@@ -49,8 +49,8 @@ export function DepartmentFields({
                 <div className="grid gap-0.5">
                     <Label htmlFor="is_active">Jurusan aktif</Label>
                     <p className="text-xs text-muted-foreground">
-                        Jurusan nonaktif tetap tersimpan namun disembunyikan dari
-                        pemilihan kelas dan siswa baru.
+                        Jurusan nonaktif tetap tersimpan namun disembunyikan
+                        dari pemilihan kelas dan siswa baru.
                     </p>
                 </div>
             </div>

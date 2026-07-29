@@ -129,7 +129,10 @@ export default function JournalIndex({
             header: 'Review',
             cell: (row) => (
                 <div className="flex flex-wrap gap-1">
-                    <ReviewBadge status={row.industry_status} prefix="Industri" />
+                    <ReviewBadge
+                        status={row.industry_status}
+                        prefix="Industri"
+                    />
                     <ReviewBadge status={row.teacher_status} prefix="Guru" />
                 </div>
             ),

@@ -1,5 +1,12 @@
 import { Form, Link } from '@inertiajs/react';
-import { LoaderCircle, Lock, Plus, ShieldCheck, SquarePlus, Users } from 'lucide-react';
+import {
+    LoaderCircle,
+    Lock,
+    Plus,
+    ShieldCheck,
+    SquarePlus,
+    Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Field } from '@/components/shared/field';
 import { StatCard } from '@/components/shared/stat-card';

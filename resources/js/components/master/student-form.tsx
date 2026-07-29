@@ -53,7 +53,9 @@ export function StudentFields({ data, setData, errors, classes, mode }: Props) {
                     <Input
                         id="nisn"
                         value={data.nisn}
-                        onChange={(event) => setData('nisn', event.target.value)}
+                        onChange={(event) =>
+                            setData('nisn', event.target.value)
+                        }
                         required
                         maxLength={30}
                         inputMode="numeric"

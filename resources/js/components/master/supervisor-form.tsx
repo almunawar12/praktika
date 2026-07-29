@@ -34,9 +34,9 @@ export function SupervisorFields({
                     <AlertDescription>
                         Akun login dibuat otomatis dari email ini. Kata sandi
                         diacak dan tidak ditampilkan — minta pembimbing
-                        menggunakan menu "Lupa kata sandi" untuk mengaktifkannya.
-                        Pembimbing hanya dapat melihat siswa PKL di
-                        perusahaannya.
+                        menggunakan menu "Lupa kata sandi" untuk
+                        mengaktifkannya. Pembimbing hanya dapat melihat siswa
+                        PKL di perusahaannya.
                     </AlertDescription>
                 </Alert>
             ) : null}

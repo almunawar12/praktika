@@ -49,7 +49,9 @@ export function CompanyFields({
                     <Input
                         id="name"
                         value={data.name}
-                        onChange={(event) => setData('name', event.target.value)}
+                        onChange={(event) =>
+                            setData('name', event.target.value)
+                        }
                         autoFocus
                         required
                         maxLength={255}
@@ -160,8 +162,9 @@ export function CompanyFields({
                     <div className="grid gap-0.5">
                         <p className="text-sm font-medium">Lokasi Absensi</p>
                         <p className="text-xs text-muted-foreground">
-                            Opsional. Ambil lokasi saat ini atau isi manual. Jika
-                            diisi, siswa hanya dapat absen dalam radius ini.
+                            Opsional. Ambil lokasi saat ini atau isi manual.
+                            Jika diisi, siswa hanya dapat absen dalam radius
+                            ini.
                         </p>
                     </div>
                     <Button
@@ -255,9 +258,7 @@ export function CompanyFields({
                 <Switch
                     id="is_active"
                     checked={data.is_active}
-                    onCheckedChange={(checked) =>
-                        setData('is_active', checked)
-                    }
+                    onCheckedChange={(checked) => setData('is_active', checked)}
                 />
                 <div className="grid gap-0.5">
                     <Label htmlFor="is_active">Perusahaan aktif</Label>
