@@ -51,18 +51,22 @@ class DashboardService
     }
 
     /**
-     * The rich overview exists only for the two admin roles; everyone else
-     * renders the plain tile dashboard and gets an explicit null.
+     * Every role except a student with no active placement gets a role-shaped
+     * overview; the frontend picks the layout to render off `role`, not off
+     * whether this is null.
      *
      * @return array<string, mixed>|null
      */
     private function overviewFor(User $user, ?RoleName $role): ?array
     {
-        if (! in_array($role, [RoleName::SuperAdmin, RoleName::AdminPkl], true)) {
-            return null;
-        }
-
-        return $this->overview->forAdmin($user);
+        return match ($role) {
+            RoleName::SuperAdmin, RoleName::AdminPkl => $this->overview->forAdmin($user),
+            RoleName::GuruPembimbing => $this->overview->forTeacher($user),
+            // Null when there is no active placement to build one from — the
+            // student then falls through to the plain tile dashboard.
+            RoleName::Siswa => $this->overview->forStudent($user),
+            RoleName::PembimbingIndustri, null => null,
+        };
     }
 
     /**

@@ -53,3 +53,68 @@ export type DashboardOverview = {
     recentAssessments: RecentAssessment[];
     activeByDepartment: DepartmentShare[];
 };
+
+export type StudentAttendedNeedingVisit = {
+    placementId: string;
+    student: string;
+    company: string;
+};
+
+export type TeacherOverview = {
+    studentsNeedingAttention: {
+        placementId: string;
+        student: string;
+        company: string;
+        alphaCount: number;
+        journalPercentage: number;
+    }[];
+    upcomingVisits: StudentAttendedNeedingVisit[];
+};
+
+export type StudentOverview = {
+    placement: {
+        company: string;
+        teacher: string;
+        startDate: string;
+        endDate: string;
+    };
+    todayStatus: {
+        status: 'present' | 'permit' | 'sick' | 'absent' | null;
+        checkInAt: string | null;
+        checkOutAt: string | null;
+    };
+    progress: {
+        daysElapsed: number;
+        totalDays: number;
+        percentage: number;
+    };
+    attendanceRecap: {
+        hadir: number;
+        izin: number;
+        sakit: number;
+        alpha: number;
+    };
+    journalToday: {
+        filled: boolean;
+    };
+    journalCompletion: {
+        filled: number;
+        workdaysElapsed: number;
+        percentage: number;
+    };
+    journalStatus: {
+        pending: number;
+        approved: number;
+        rejected: number;
+    };
+    rejectedJournals: {
+        id: string;
+        date: string;
+        note: string | null;
+    }[];
+    finalScore: {
+        score: number;
+        grade: string;
+        publishedAt: string | null;
+    } | null;
+};

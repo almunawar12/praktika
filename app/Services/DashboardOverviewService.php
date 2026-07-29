@@ -16,6 +16,7 @@ use App\Models\Journal;
 use App\Models\Monitoring;
 use App\Models\Placement;
 use App\Models\Student;
+use App\Models\Teacher;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -48,6 +49,264 @@ class DashboardOverviewService
             'recentAssessments' => $this->recentAssessments($user),
             'activeByDepartment' => $this->activeByDepartment($user),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function forStudent(User $user): ?array
+    {
+        $placement = $user->student?->activePlacement()->with(['company', 'teacher'])->first();
+
+        if ($placement === null) {
+            return null;
+        }
+
+        return [
+            'placement' => [
+                'company' => $placement->company->name,
+                'teacher' => $placement->teacher->name,
+                'startDate' => $placement->start_date->toDateString(),
+                'endDate' => $placement->end_date->toDateString(),
+            ],
+            'todayStatus' => $this->todayStatus($placement),
+            'progress' => $this->placementProgress($placement),
+            'attendanceRecap' => $this->attendanceRecap($placement),
+            'journalToday' => $this->journalToday($placement),
+            'journalCompletion' => $this->journalCompletion($placement),
+            'journalStatus' => $this->journalStatusCounts($placement),
+            'rejectedJournals' => $this->rejectedJournals($placement),
+            'finalScore' => $this->studentFinalScore($placement),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function todayStatus(Placement $placement): array
+    {
+        $today = $placement->attendances()
+            ->whereDate('date', CarbonImmutable::now()->toDateString())
+            ->where('verification_status', '!=', VerificationStatus::Rejected)
+            ->first();
+
+        return [
+            'status' => $today?->status->value,
+            'checkInAt' => $today?->check_in_at?->toIso8601String(),
+            'checkOutAt' => $today?->check_out_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function placementProgress(Placement $placement): array
+    {
+        $today = CarbonImmutable::now()->startOfDay();
+        $start = $placement->start_date;
+        $end = $placement->end_date;
+
+        $totalDays = $start->diffInDays($end) + 1;
+
+        $elapsedDays = match (true) {
+            $today->lt($start) => 0,
+            $today->gt($end) => $totalDays,
+            default => $start->diffInDays($today) + 1,
+        };
+
+        return [
+            'daysElapsed' => $elapsedDays,
+            'totalDays' => $totalDays,
+            'percentage' => (float) round($elapsedDays / $totalDays * 100, 1),
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function attendanceRecap(Placement $placement): array
+    {
+        $counts = $placement->attendances()
+            ->where('verification_status', '!=', VerificationStatus::Rejected)
+            ->groupBy('status')
+            ->selectRaw('status, count(*) as total')
+            ->pluck('total', 'status');
+
+        return [
+            'hadir' => (int) ($counts[AttendanceStatus::Present->value] ?? 0),
+            'izin' => (int) ($counts[AttendanceStatus::Permit->value] ?? 0),
+            'sakit' => (int) ($counts[AttendanceStatus::Sick->value] ?? 0),
+            'alpha' => (int) ($counts[AttendanceStatus::Absent->value] ?? 0),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function journalToday(Placement $placement): array
+    {
+        $filled = $placement->journals()
+            ->whereDate('date', CarbonImmutable::now()->toDateString())
+            ->exists();
+
+        return ['filled' => $filled];
+    }
+
+    /**
+     * Filled journals against working days elapsed since the placement began —
+     * weekends never counted against the student, so they are excluded here too.
+     *
+     * @return array<string, mixed>
+     */
+    private function journalCompletion(Placement $placement): array
+    {
+        $filled = $placement->journals()->count();
+
+        $workdaysElapsed = 0;
+        $cursor = $placement->start_date;
+        $end = CarbonImmutable::now()->startOfDay()->min($placement->end_date);
+
+        while ($cursor->lte($end)) {
+            if (! $cursor->isWeekend()) {
+                $workdaysElapsed++;
+            }
+
+            $cursor = $cursor->addDay();
+        }
+
+        return [
+            'filled' => $filled,
+            'workdaysElapsed' => $workdaysElapsed,
+            'percentage' => $workdaysElapsed > 0
+                ? (float) round(min($filled, $workdaysElapsed) / $workdaysElapsed * 100, 1)
+                : 0.0,
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function journalStatusCounts(Placement $placement): array
+    {
+        $counts = $placement->journals()
+            ->groupBy('status')
+            ->selectRaw('status, count(*) as total')
+            ->pluck('total', 'status');
+
+        return [
+            'pending' => (int) ($counts[ReviewStatus::Pending->value] ?? 0),
+            'approved' => (int) ($counts[ReviewStatus::Approved->value] ?? 0),
+            'rejected' => (int) ($counts[ReviewStatus::Rejected->value] ?? 0),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rejectedJournals(Placement $placement): array
+    {
+        return $placement->journals()
+            ->where('status', ReviewStatus::Rejected)
+            ->latest('date')
+            ->limit(5)
+            ->get()
+            ->map(fn (Journal $journal): array => [
+                'id' => $journal->id,
+                'date' => $journal->date->toDateString(),
+                'note' => $journal->teacher_note ?? $journal->industry_note,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function studentFinalScore(Placement $placement): ?array
+    {
+        $finalScore = $placement->finalScore()->published()->first();
+
+        if ($finalScore === null) {
+            return null;
+        }
+
+        return [
+            'score' => (float) $finalScore->final_score,
+            'grade' => $finalScore->grade,
+            'publishedAt' => $finalScore->published_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function forTeacher(User $user): array
+    {
+        $teacher = $user->teacher;
+
+        if ($teacher === null) {
+            return [
+                'studentsNeedingAttention' => [],
+                'upcomingVisits' => [],
+            ];
+        }
+
+        return [
+            'studentsNeedingAttention' => $this->studentsNeedingAttention($user),
+            'upcomingVisits' => $this->upcomingVisits($teacher),
+        ];
+    }
+
+    /**
+     * Active placements with either a high alpha count or low journal completion —
+     * the two signals a supervisor actually needs to act on.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function studentsNeedingAttention(User $user): array
+    {
+        $placements = Placement::query()
+            ->visibleTo($user)
+            ->active()
+            ->with(['student:id,name', 'company:id,name'])
+            ->get();
+
+        $rows = [];
+
+        foreach ($placements as $placement) {
+            $alphaCount = $placement->attendances()
+                ->where('status', AttendanceStatus::Absent)
+                ->count();
+
+            $completion = $this->journalCompletion($placement);
+
+            if ($alphaCount < 3 && $completion['percentage'] >= 60.0) {
+                continue;
+            }
+
+            $rows[] = [
+                'placementId' => $placement->id,
+                'student' => $placement->student->name,
+                'company' => $placement->company->name,
+                'alphaCount' => $alphaCount,
+                'journalPercentage' => $completion['percentage'],
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function upcomingVisits(Teacher $teacher): array
+    {
+        return app(MonitoringService::class)->needingVisit($teacher)
+            ->map(fn (Placement $placement): array => [
+                'placementId' => $placement->id,
+                'student' => $placement->student->name,
+                'company' => $placement->company->name,
+            ])
+            ->all();
     }
 
     /**

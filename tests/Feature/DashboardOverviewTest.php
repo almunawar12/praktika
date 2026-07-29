@@ -15,6 +15,7 @@ use App\Models\Monitoring;
 use App\Models\Placement;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Teacher;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia;
 
@@ -36,16 +37,111 @@ test('admin roles receive the overview payload', function (RoleName $role): void
     'admin pkl' => RoleName::AdminPkl,
 ]);
 
-test('non-admin roles get no overview', function (RoleName $role): void {
-    $this->actingAs(userWithRole($role))
+test('industri gets no overview', function (): void {
+    $this->actingAs(userWithRole(RoleName::PembimbingIndustri))
         ->get('/dashboard')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('overview', null));
-})->with([
-    'guru' => RoleName::GuruPembimbing,
-    'industri' => RoleName::PembimbingIndustri,
-    'siswa' => RoleName::Siswa,
-]);
+});
+
+test('a student with no active placement gets no overview', function (): void {
+    $this->actingAs(userWithRole(RoleName::Siswa))
+        ->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('overview', null));
+});
+
+test('guru pembimbing gets a teacher overview', function (): void {
+    $teacher = Teacher::factory()->create();
+
+    $this->actingAs($teacher->user)
+        ->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('overview.studentsNeedingAttention')
+            ->has('overview.upcomingVisits')
+        );
+});
+
+test('a student with an active placement gets a student overview', function (): void {
+    $placement = Placement::factory()->active()->create();
+
+    $this->actingAs($placement->student->user)
+        ->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('overview.placement.company', $placement->company->name)
+            ->where('overview.placement.teacher', $placement->teacher->name)
+        );
+});
+
+test('a student sees their own placement progress and today status', function (): void {
+    $this->travelTo(CarbonImmutable::parse('2026-07-15 10:00:00'));
+
+    $placement = Placement::factory()->active()->create([
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-30',
+    ]);
+
+    Attendance::factory()->create([
+        'placement_id' => $placement->id,
+        'date' => '2026-07-15',
+        'status' => AttendanceStatus::Present,
+    ]);
+
+    $this->actingAs($placement->student->user)
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            // Day 15 of a 30-day term.
+            ->where('overview.progress.daysElapsed', 15)
+            ->where('overview.progress.totalDays', 30)
+            ->where('overview.progress.percentage', 50)
+            ->where('overview.todayStatus.status', 'present')
+            ->where('overview.attendanceRecap.hadir', 1)
+        );
+});
+
+test('a student sees their rejected journals as an alert', function (): void {
+    $placement = Placement::factory()->active()->create();
+
+    Journal::factory()->teacherRejected()->create([
+        'placement_id' => $placement->id,
+    ]);
+
+    $this->actingAs($placement->student->user)
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('overview.rejectedJournals', 1)
+            ->where('overview.rejectedJournals.0.note', 'Hasil pekerjaan belum sesuai kompetensi.')
+        );
+});
+
+test('a teacher sees supervised placements needing attention and unvisited placements', function (): void {
+    $teacher = Teacher::factory()->create();
+
+    $troubled = Placement::factory()->active()->create(['teacher_id' => $teacher->id]);
+    Attendance::factory()->count(3)->sequence(
+        ['date' => '2026-07-10'],
+        ['date' => '2026-07-11'],
+        ['date' => '2026-07-12'],
+    )->create([
+        'placement_id' => $troubled->id,
+        'status' => AttendanceStatus::Absent,
+    ]);
+
+    // Not this teacher's student — must never show up.
+    Placement::factory()->active()->create();
+
+    $this->actingAs($teacher->user)
+        ->get('/dashboard')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('overview.studentsNeedingAttention', 1)
+            ->where('overview.studentsNeedingAttention.0.placementId', $troubled->id)
+            ->where('overview.studentsNeedingAttention.0.alphaCount', 3)
+            ->has('overview.upcomingVisits', 1)
+            ->where('overview.upcomingVisits.0.placementId', $troubled->id)
+        );
+});
 
 test('student and company tiles report the monthly delta', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-07-15 10:00:00'));

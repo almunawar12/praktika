@@ -1,6 +1,8 @@
 import { AdminOverview } from '@/components/dashboard/admin-overview';
 import { StatCard } from '@/components/dashboard/stat-card';
 import type { Stat } from '@/components/dashboard/stat-card';
+import { StudentOverview } from '@/components/dashboard/student-overview';
+import { TeacherOverview } from '@/components/dashboard/teacher-overview';
 import { Badge } from '@/components/ui/badge';
 import {
     Card,
@@ -11,7 +13,11 @@ import {
 } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import AppLayout from '@/layouts/app-layout';
-import type { DashboardOverview } from '@/types/dashboard';
+import type {
+    DashboardOverview,
+    StudentOverview as StudentOverviewData,
+    TeacherOverview as TeacherOverviewData,
+} from '@/types/dashboard';
 
 type RecentActivity = {
     id: string;
@@ -26,7 +32,8 @@ type DashboardProps = {
     roleLabel: string | null;
     stats: Stat[];
     recentActivities: RecentActivity[];
-    overview: DashboardOverview | null;
+    overview:
+        DashboardOverview | TeacherOverviewData | StudentOverviewData | null;
 };
 
 function formatDate(iso: string | null): string {
@@ -40,24 +47,49 @@ function formatDate(iso: string | null): string {
     }).format(new Date(iso));
 }
 
+function overviewFor(
+    role: string | null,
+    overview: DashboardProps['overview'],
+) {
+    if (overview === null) {
+        return null;
+    }
+
+    if (role === 'super-admin' || role === 'admin-pkl') {
+        return <AdminOverview overview={overview as DashboardOverview} />;
+    }
+
+    if (role === 'guru-pembimbing') {
+        return <TeacherOverview overview={overview as TeacherOverviewData} />;
+    }
+
+    if (role === 'siswa') {
+        return <StudentOverview overview={overview as StudentOverviewData} />;
+    }
+
+    return null;
+}
+
 export default function Dashboard({
+    role,
     roleLabel,
     stats,
     recentActivities,
     overview,
 }: DashboardProps) {
     const { user } = useAuth();
+    const overviewContent = overviewFor(role, overview);
 
-    // Only the two admin roles are served an overview; everyone else falls
-    // through to the plain tile dashboard below.
-    if (overview !== null) {
+    // A role-shaped overview exists for every role except a student with no
+    // active placement, or a role the server never gives one to (industri).
+    if (overviewContent !== null) {
         return (
             <AppLayout
                 headTitle="Dashboard"
                 title={`Selamat datang, ${user?.name ?? ''} 👋`}
                 description="Berikut ringkasan kegiatan PKL hari ini."
             >
-                <AdminOverview overview={overview} />
+                {overviewContent}
             </AppLayout>
         );
     }
