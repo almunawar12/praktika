@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 
+Route::inertia('/panduan', 'panduan')->name('panduan');
+
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', DashboardController::class)
         ->middleware('can:dashboard.view')
