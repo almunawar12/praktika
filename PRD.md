@@ -170,6 +170,19 @@ Field:
 
 ---
 
+## Modul Tahun Ajaran
+
+Menaungi (scope) kelas dan penempatan PKL per periode akademik.
+
+Field:
+
+* nama
+* tanggal_mulai
+* tanggal_selesai
+* status (aktif / nonaktif)
+
+---
+
 ## Modul Penempatan PKL
 
 Field:
@@ -177,15 +190,20 @@ Field:
 * siswa_id
 * perusahaan_id
 * guru_id
+* academic_year_id
 * tanggal_mulai
 * tanggal_selesai
 * status
+* cancel_reason (diisi saat status dibatalkan)
 
 Status:
 
 * draft
 * aktif
 * selesai
+* dibatalkan
+
+Penempatan yang telah melewati tanggal_selesai otomatis berstatus selesai lewat scheduled job (`CompleteExpiredPlacementsJob`), tanpa aksi manual admin.
 
 ---
 
@@ -201,6 +219,10 @@ Field:
 * longitude
 * foto
 * status
+* verification_status (pending / terverifikasi / ditolak)
+* verified_by
+* verified_at
+* verification_note
 
 Status:
 
@@ -208,6 +230,8 @@ Status:
 * izin
 * sakit
 * alpha
+
+Validasi GPS Radius: setiap perusahaan memiliki titik koordinat dan radius geofence. Check in/out hanya sah bila jarak siswa (`check_in_distance_m` / `check_out_distance_m`) berada dalam radius tersebut; status hadir mewajibkan foto dan lokasi.
 
 ---
 
@@ -271,6 +295,16 @@ Skala:
 
 0 - 100
 
+### Nilai Akhir
+
+Dihitung sistem dari nilai industri dan nilai guru terboboti (weighted), lalu dipublikasikan.
+
+Field tambahan:
+
+* grade (huruf A–E, diturunkan dari nilai akhir)
+* published_at
+* published_by
+
 ---
 
 ## Modul Laporan
@@ -327,8 +361,8 @@ Pembimbing Industri Input Nilai
 # 6. Non Functional Requirements
 
 * Responsive Mobile First
-* Laravel 12
-* PHP 8.4+
+* Laravel 13
+* PHP 8.3+
 * PostgreSQL
 * Inertia React
 * TypeScript
@@ -345,7 +379,6 @@ Pembimbing Industri Input Nilai
 
 * Mobile App Android
 * QR Absensi
-* GPS Radius Validation
 * WhatsApp Notification
 * E-Signature
 * AI Journal Summary
