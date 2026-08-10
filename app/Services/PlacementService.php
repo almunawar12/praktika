@@ -8,6 +8,7 @@ use App\DataTransferObjects\PlacementData;
 use App\DataTransferObjects\TableRequest;
 use App\Enums\PlacementStatus;
 use App\Exceptions\PlacementRuleException;
+use App\Models\AcademicYear;
 use App\Models\Company;
 use App\Models\Placement;
 use App\Models\Student;
@@ -85,6 +86,7 @@ class PlacementService
     {
         return DB::transaction(fn (): Placement => Placement::create([
             ...$data->toAttributes(),
+            'academic_year_id' => $data->academicYearId ?? $this->activeAcademicYearId(),
             'status' => PlacementStatus::Draft,
         ]));
     }
@@ -118,7 +120,12 @@ class PlacementService
                 }
             }
 
-            $placement->update($data->toAttributes());
+            // Omitting the field on edit must not silently reset an already-scoped
+            // placement back to whatever year happens to be active right now.
+            $placement->update([
+                ...$data->toAttributes(),
+                'academic_year_id' => $data->academicYearId ?? $placement->academic_year_id,
+            ]);
 
             return $placement;
         });
@@ -272,5 +279,14 @@ class PlacementService
     private function isOneActiveViolation(QueryException $exception): bool
     {
         return str_contains($exception->getMessage(), 'placements_one_active_per_student');
+    }
+
+    /**
+     * Null when no academic year is active — an unscoped placement is preferable to
+     * a create failing outright over master data an admin has not set up yet.
+     */
+    private function activeAcademicYearId(): ?string
+    {
+        return AcademicYear::query()->active()->value('id');
     }
 }

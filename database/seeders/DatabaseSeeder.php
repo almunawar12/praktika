@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
             // depend on (ADR-03).
             SettingSeeder::class,
             UserSeeder::class,
+            // Not demo data either: a real school needs a current academic year from
+            // day one, or every class and placement starts out unscoped.
+            AcademicYearSeeder::class,
         ]);
 
         // Demo data invents people, companies and placements — never in production.

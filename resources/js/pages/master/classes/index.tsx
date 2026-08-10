@@ -56,10 +56,14 @@ type Props = {
     classes: Paginated<SchoolClass>;
     table: TableState;
     departments: SelectOption[];
+    academicYears: SelectOption[];
     stats: Stats;
 };
 
-type EditRecord = SchoolClassRecord & { department_id: string };
+type EditRecord = SchoolClassRecord & {
+    department_id: string;
+    academic_year_id: string | null;
+};
 type Modal = { mode: 'create' | 'edit' | 'detail'; id?: string } | null;
 
 const PER_PAGE_OPTIONS = ['10', '15', '25', '50'];
@@ -68,6 +72,7 @@ export default function ClassIndex({
     classes,
     table,
     departments,
+    academicYears,
     stats,
 }: Props) {
     const { can } = usePermission();
@@ -326,11 +331,20 @@ export default function ClassIndex({
                 description="Buat kelas baru"
                 action="/master/classes"
                 method="post"
-                initialData={{ department_id: '', name: '', is_active: true }}
+                initialData={{
+                    department_id: '',
+                    academic_year_id: '',
+                    name: '',
+                    is_active: true,
+                }}
                 submitLabel="Simpan"
             >
                 {(fields) => (
-                    <SchoolClassFields {...fields} departments={departments} />
+                    <SchoolClassFields
+                        {...fields}
+                        departments={departments}
+                        academicYears={academicYears}
+                    />
                 )}
             </FormModal>
 
@@ -344,6 +358,7 @@ export default function ClassIndex({
                     method="put"
                     initialData={{
                         department_id: edit.data.department_id,
+                        academic_year_id: edit.data.academic_year_id ?? '',
                         name: edit.data.name,
                         is_active: edit.data.is_active,
                     }}
@@ -353,6 +368,7 @@ export default function ClassIndex({
                         <SchoolClassFields
                             {...fields}
                             departments={departments}
+                            academicYears={academicYears}
                         />
                     )}
                 </FormModal>

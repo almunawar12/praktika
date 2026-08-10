@@ -14,12 +14,14 @@ import type { SelectOption } from '@/types/table';
 
 export type SchoolClassValues = {
     department_id: string;
+    academic_year_id: string;
     name: string;
     is_active: boolean;
 };
 
 type Props = FieldsProps<SchoolClassValues> & {
     departments: SelectOption[];
+    academicYears: SelectOption[];
 };
 
 export function SchoolClassFields({
@@ -27,6 +29,7 @@ export function SchoolClassFields({
     setData,
     errors,
     departments,
+    academicYears,
 }: Props) {
     return (
         <>
@@ -48,6 +51,33 @@ export function SchoolClassFields({
                     </SelectTrigger>
                     <SelectContent>
                         {departments.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </Field>
+
+            <Field
+                id="academic_year_id"
+                label="Tahun Ajaran"
+                error={errors.academic_year_id}
+            >
+                <Select
+                    value={data.academic_year_id}
+                    onValueChange={(value) =>
+                        setData('academic_year_id', value)
+                    }
+                >
+                    <SelectTrigger
+                        id="academic_year_id"
+                        aria-invalid={Boolean(errors.academic_year_id)}
+                    >
+                        <SelectValue placeholder="Otomatis (tahun ajaran aktif)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {academicYears.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                                 {option.label}
                             </SelectItem>

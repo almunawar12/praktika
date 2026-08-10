@@ -8,6 +8,7 @@ use App\DataTransferObjects\TableRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Master\StoreSchoolClassRequest;
 use App\Http\Requests\Master\UpdateSchoolClassRequest;
+use App\Models\AcademicYear;
 use App\Models\Department;
 use App\Models\SchoolClass;
 use App\Services\SchoolClassService;
@@ -32,6 +33,7 @@ class SchoolClassController extends Controller
             'table' => $table->toArray(),
             'sortable' => SchoolClassService::SORTABLE,
             'departments' => $this->departmentOptions(),
+            'academicYears' => $this->academicYearOptions(),
             'stats' => $this->classes->stats(),
         ]);
     }
@@ -49,7 +51,7 @@ class SchoolClassController extends Controller
     {
         $this->authorize('view', $class);
 
-        $class->load('department:id,code,name');
+        $class->load(['department:id,code,name', 'academicYear:id,name']);
         $class->loadCount('students');
 
         return response()->json([
@@ -103,6 +105,21 @@ class SchoolClassController extends Controller
             ->map(fn (Department $d): array => [
                 'value' => $d->id,
                 'label' => "{$d->code} — {$d->name}",
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    private function academicYearOptions(): array
+    {
+        return AcademicYear::query()
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'is_active'])
+            ->map(fn (AcademicYear $year): array => [
+                'value' => $year->id,
+                'label' => $year->is_active ? "{$year->name} (aktif)" : $year->name,
             ])
             ->all();
     }

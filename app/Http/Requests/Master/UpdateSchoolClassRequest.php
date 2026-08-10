@@ -18,6 +18,17 @@ class UpdateSchoolClassRequest extends FormRequest
     }
 
     /**
+     * The picker's "Otomatis" option submits an empty string, not an absent field —
+     * `nullable` only recognises the latter, so this is what actually lets it through.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('academic_year_id') === '') {
+            $this->merge(['academic_year_id' => null]);
+        }
+    }
+
+    /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -26,6 +37,12 @@ class UpdateSchoolClassRequest extends FormRequest
             'department_id' => [
                 'required', 'uuid',
                 Rule::exists('departments', 'id')->whereNull('deleted_at'),
+            ],
+            // Optional: omitting it leaves the class's current academic year
+            // untouched — see SchoolClassService::update().
+            'academic_year_id' => [
+                'nullable', 'uuid',
+                Rule::exists('academic_years', 'id')->whereNull('deleted_at'),
             ],
             'name' => [
                 'required', 'string', 'max:255',
@@ -43,7 +60,7 @@ class UpdateSchoolClassRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['department_id' => 'jurusan', 'name' => 'nama'];
+        return ['department_id' => 'jurusan', 'academic_year_id' => 'tahun ajaran', 'name' => 'nama'];
     }
 
     /**

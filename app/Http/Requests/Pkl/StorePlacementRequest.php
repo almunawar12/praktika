@@ -17,6 +17,17 @@ class StorePlacementRequest extends FormRequest
     }
 
     /**
+     * The picker's "Otomatis" option submits an empty string, not an absent field —
+     * `nullable` only recognises the latter, so this is what actually lets it through.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('academic_year_id') === '') {
+            $this->merge(['academic_year_id' => null]);
+        }
+    }
+
+    /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -34,6 +45,11 @@ class StorePlacementRequest extends FormRequest
                 'required', 'uuid',
                 Rule::exists('teachers', 'id')->whereNull('deleted_at'),
             ],
+            // Optional: the service defaults to the active academic year when omitted.
+            'academic_year_id' => [
+                'nullable', 'uuid',
+                Rule::exists('academic_years', 'id')->whereNull('deleted_at'),
+            ],
             'start_date' => ['required', 'date'],
             // Mirrors the placements_dates_check constraint, so the user gets a field
             // error instead of a database error.
@@ -50,6 +66,7 @@ class StorePlacementRequest extends FormRequest
             'student_id' => 'siswa',
             'company_id' => 'perusahaan',
             'teacher_id' => 'guru pembimbing',
+            'academic_year_id' => 'tahun ajaran',
             'start_date' => 'tanggal mulai',
             'end_date' => 'tanggal selesai',
         ];

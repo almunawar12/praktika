@@ -26,6 +26,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string $student_id
  * @property string $company_id
  * @property string $teacher_id
+ * @property string|null $academic_year_id
  * @property PlacementStatus $status
  * @property CarbonImmutable $start_date
  * @property CarbonImmutable $end_date
@@ -36,13 +37,14 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read Student $student
  * @property-read Company $company
  * @property-read Teacher $teacher
+ * @property-read AcademicYear|null $academicYear
  * @property-read Collection<int, Attendance> $attendances
  * @property-read Collection<int, Journal> $journals
  * @property-read Collection<int, Monitoring> $monitorings
  * @property-read Collection<int, Assessment> $assessments
  * @property-read FinalScore|null $finalScore
  */
-#[Fillable(['student_id', 'company_id', 'teacher_id', 'status', 'start_date', 'end_date', 'cancel_reason'])]
+#[Fillable(['student_id', 'company_id', 'teacher_id', 'academic_year_id', 'status', 'start_date', 'end_date', 'cancel_reason'])]
 class Placement extends Model
 {
     /** @use HasFactory<PlacementFactory> */
@@ -68,7 +70,7 @@ class Placement extends Model
     {
         return LogOptions::defaults()
             ->useLogName('placement')
-            ->logOnly(['student_id', 'company_id', 'teacher_id', 'status', 'start_date', 'end_date', 'cancel_reason'])
+            ->logOnly(['student_id', 'company_id', 'teacher_id', 'academic_year_id', 'status', 'start_date', 'end_date', 'cancel_reason'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -135,6 +137,14 @@ class Placement extends Model
     public function finalScore(): HasOne
     {
         return $this->hasOne(FinalScore::class);
+    }
+
+    /**
+     * @return BelongsTo<AcademicYear, $this>
+     */
+    public function academicYear(): BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class);
     }
 
     /**

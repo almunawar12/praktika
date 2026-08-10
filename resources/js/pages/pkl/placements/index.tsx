@@ -370,6 +370,7 @@ export default function PlacementIndex({
                         student_id: '',
                         company_id: '',
                         teacher_id: '',
+                        academic_year_id: '',
                         start_date: '',
                         end_date: '',
                     }}
@@ -397,6 +398,7 @@ export default function PlacementIndex({
                         student_id: edit.data.student.id,
                         company_id: edit.data.company.id,
                         teacher_id: edit.data.teacher.id,
+                        academic_year_id: edit.data.academic_year_id ?? '',
                         start_date: edit.data.start_date.slice(0, 10),
                         end_date: edit.data.end_date.slice(0, 10),
                     }}

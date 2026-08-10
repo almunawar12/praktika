@@ -31,7 +31,7 @@ final class SidebarBuilder
             ]),
 
             $this->group('Master Data', [
-                $this->item('Tahun Ajaran', 'CalendarRange', 'academic-years.viewAny'),
+                $this->item('Tahun Ajaran', 'CalendarRange', 'academic-years.viewAny', route: 'master.academic-years.index'),
                 $this->item('Jurusan', 'Network', 'departments.viewAny', route: 'master.departments.index'),
                 $this->item('Kelas', 'School', 'school-classes.viewAny', route: 'master.classes.index'),
                 $this->item('Siswa', 'GraduationCap', 'students.viewAny', route: 'master.students.index'),

@@ -10,6 +10,7 @@ export type PlacementValues = {
     student_id: string;
     company_id: string;
     teacher_id: string;
+    academic_year_id: string;
     start_date: string;
     end_date: string;
 };
@@ -18,6 +19,7 @@ export type PlacementFormOptions = {
     students: SelectOption[];
     companies: SelectOption[];
     teachers: SelectOption[];
+    academicYears: SelectOption[];
 };
 
 type Props = FieldsProps<PlacementValues> & {
@@ -106,6 +108,30 @@ export function PlacementFields({
                 error={errors.teacher_id}
                 placeholder="Pilih guru pembimbing"
             />
+
+            <Field
+                id="academic_year_id"
+                label="Tahun Ajaran"
+                error={errors.academic_year_id}
+            >
+                <Combobox
+                    id="academic_year_id"
+                    value={data.academic_year_id}
+                    onValueChange={(value) =>
+                        setData('academic_year_id', value)
+                    }
+                    options={[
+                        {
+                            value: '',
+                            label: 'Otomatis (tahun ajaran aktif)',
+                        },
+                        ...options.academicYears,
+                    ]}
+                    placeholder="Otomatis (tahun ajaran aktif)"
+                    searchPlaceholder="Cari tahun ajaran..."
+                    aria-invalid={Boolean(errors.academic_year_id)}
+                />
+            </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
                 <Field

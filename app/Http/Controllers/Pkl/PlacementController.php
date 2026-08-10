@@ -10,6 +10,7 @@ use App\Enums\PlacementStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pkl\StorePlacementRequest;
 use App\Http\Requests\Pkl\UpdatePlacementRequest;
+use App\Models\AcademicYear;
 use App\Models\Company;
 use App\Models\Placement;
 use App\Models\Student;
@@ -57,6 +58,7 @@ class PlacementController extends Controller
                 'students' => $this->studentOptions(),
                 'companies' => $this->companyOptions(withQuota: true),
                 'teachers' => $this->teacherOptions(),
+                'academicYears' => $this->academicYearOptions(),
             ],
         ]);
     }
@@ -83,6 +85,7 @@ class PlacementController extends Controller
             'company:id,name,business_field,address,pic_name,pic_phone,quota,is_active',
             'teacher:id,name,nip,user_id',
             'teacher.user:id,email',
+            'academicYear:id,name',
         ]);
 
         return response()->json([
@@ -201,6 +204,21 @@ class PlacementController extends Controller
             ->map(fn (Teacher $t): array => [
                 'value' => $t->id,
                 'label' => "{$t->name} — {$t->nip}",
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    private function academicYearOptions(): array
+    {
+        return AcademicYear::query()
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'is_active'])
+            ->map(fn (AcademicYear $year): array => [
+                'value' => $year->id,
+                'label' => $year->is_active ? "{$year->name} (aktif)" : $year->name,
             ])
             ->all();
     }

@@ -18,6 +18,17 @@ class UpdatePlacementRequest extends FormRequest
     }
 
     /**
+     * The picker's "Otomatis" option submits an empty string, not an absent field —
+     * `nullable` only recognises the latter, so this is what actually lets it through.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('academic_year_id') === '') {
+            $this->merge(['academic_year_id' => null]);
+        }
+    }
+
+    /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -35,6 +46,12 @@ class UpdatePlacementRequest extends FormRequest
                 'required', 'uuid',
                 Rule::exists('teachers', 'id')->whereNull('deleted_at'),
             ],
+            // Optional: omitting it leaves the placement's current academic year
+            // untouched — see PlacementService::update().
+            'academic_year_id' => [
+                'nullable', 'uuid',
+                Rule::exists('academic_years', 'id')->whereNull('deleted_at'),
+            ],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
         ];
@@ -49,6 +66,7 @@ class UpdatePlacementRequest extends FormRequest
             'student_id' => 'siswa',
             'company_id' => 'perusahaan',
             'teacher_id' => 'guru pembimbing',
+            'academic_year_id' => 'tahun ajaran',
             'start_date' => 'tanggal mulai',
             'end_date' => 'tanggal selesai',
         ];

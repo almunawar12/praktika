@@ -67,22 +67,21 @@ test('the sidebar is filtered by permission, not by role name', function (): voi
     expect(sidebarLabels($user))->toContain('Pengguna');
 });
 
-test('unbuilt modules are disabled placeholders rather than dead links', function (): void {
+test('every declared sidebar item is a live link, not a placeholder', function (): void {
     $groups = app(SidebarBuilder::class)->build(userWithRole(RoleName::SuperAdmin));
 
     $items = collect($groups)->flatMap(fn (array $group): array => $group['items']);
 
     $dashboard = $items->firstWhere('label', 'Dashboard');
     $students = $items->firstWhere('label', 'Siswa');
-    // Still unbuilt as of the Master Data module.
     $academicYears = $items->firstWhere('label', 'Tahun Ajaran');
 
     expect($dashboard['enabled'])->toBeTrue()
         ->and($dashboard['href'])->toBe(route('dashboard'))
         ->and($students['enabled'])->toBeTrue()
         ->and($students['href'])->toBe(route('master.students.index'))
-        ->and($academicYears['enabled'])->toBeFalse()
-        ->and($academicYears['href'])->toBeNull();
+        ->and($academicYears['enabled'])->toBeTrue()
+        ->and($academicYears['href'])->toBe(route('master.academic-years.index'));
 });
 
 test('every enabled sidebar link points at a route that exists', function (): void {

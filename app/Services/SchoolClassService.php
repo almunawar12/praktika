@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\DataTransferObjects\TableRequest;
 use App\Exceptions\ResourceInUseException;
+use App\Models\AcademicYear;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -67,7 +68,10 @@ class SchoolClassService
      */
     public function create(array $data): SchoolClass
     {
-        return SchoolClass::create($data);
+        return SchoolClass::create([
+            ...$data,
+            'academic_year_id' => $data['academic_year_id'] ?? $this->activeAcademicYearId(),
+        ]);
     }
 
     /**
@@ -75,7 +79,12 @@ class SchoolClassService
      */
     public function update(SchoolClass $class, array $data): SchoolClass
     {
-        $class->update($data);
+        // Omitting the field on edit must not silently reset an already-scoped
+        // class back to whatever year happens to be active right now.
+        $class->update([
+            ...$data,
+            'academic_year_id' => $data['academic_year_id'] ?? $class->academic_year_id,
+        ]);
 
         return $class;
     }
@@ -92,5 +101,14 @@ class SchoolClassService
         }
 
         $class->delete();
+    }
+
+    /**
+     * Null when no academic year is active — an unscoped class is preferable to a
+     * create failing outright over master data an admin has not set up yet.
+     */
+    private function activeAcademicYearId(): ?string
+    {
+        return AcademicYear::query()->active()->value('id');
     }
 }

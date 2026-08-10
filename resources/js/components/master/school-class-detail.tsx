@@ -8,6 +8,7 @@ export type SchoolClassRecord = {
     is_active: boolean;
     students_count: number;
     department: { id: string; code: string; name: string };
+    academic_year: { id: string; name: string } | null;
 };
 
 export function SchoolClassDetail({ record }: { record: SchoolClassRecord }) {
@@ -25,6 +26,9 @@ export function SchoolClassDetail({ record }: { record: SchoolClassRecord }) {
                 ) : (
                     <Badge variant="outline">Nonaktif</Badge>
                 )}
+            </DetailItem>
+            <DetailItem label="Tahun Ajaran">
+                {record.academic_year?.name ?? '-'}
             </DetailItem>
             <DetailItem label="Jumlah Siswa">
                 <Link

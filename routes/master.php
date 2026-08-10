@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Master\AcademicYearController;
 use App\Http\Controllers\Master\CompanyController;
 use App\Http\Controllers\Master\CompanySupervisorController;
 use App\Http\Controllers\Master\DepartmentController;
@@ -16,6 +17,15 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('auth')->prefix('master')->name('master.')->group(function (): void {
+    Route::resource('academic-years', AcademicYearController::class)
+        ->parameters(['academic-years' => 'academic_year'])
+        ->except('create')
+        ->middleware('can:academic-years.viewAny');
+
+    Route::put('academic-years/{academic_year}/activate', [AcademicYearController::class, 'activate'])
+        ->middleware('can:academic-years.viewAny')
+        ->name('academic-years.activate');
+
     Route::resource('departments', DepartmentController::class)
         ->except('create')
         ->middleware('can:departments.viewAny');

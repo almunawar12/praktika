@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 export type PlacementRecord = {
     id: string;
     status: PlacementStatus;
+    academic_year_id: string | null;
+    academic_year: { id: string; name: string } | null;
     start_date: string;
     end_date: string;
     cancel_reason: string | null;
@@ -102,6 +104,9 @@ export function PlacementDetail({
                     </DetailItem>
                     <DetailItem label="Tanggal Selesai">
                         {formatDate(placement.end_date)}
+                    </DetailItem>
+                    <DetailItem label="Tahun Ajaran">
+                        {placement.academic_year?.name ?? '-'}
                     </DetailItem>
                 </dl>
             </section>

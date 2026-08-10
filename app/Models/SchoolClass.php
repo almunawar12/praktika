@@ -20,15 +20,17 @@ use Spatie\Activitylog\Traits\LogsActivity;
 /**
  * @property string $id
  * @property string $department_id
+ * @property string|null $academic_year_id
  * @property string $name
  * @property bool $is_active
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property CarbonImmutable|null $deleted_at
  * @property-read Department $department
+ * @property-read AcademicYear|null $academicYear
  * @property-read Collection<int, Student> $students
  */
-#[Fillable(['department_id', 'name', 'is_active'])]
+#[Fillable(['department_id', 'academic_year_id', 'name', 'is_active'])]
 class SchoolClass extends Model
 {
     /** @use HasFactory<SchoolClassFactory> */
@@ -52,7 +54,7 @@ class SchoolClass extends Model
     {
         return LogOptions::defaults()
             ->useLogName('school-class')
-            ->logOnly(['department_id', 'name', 'is_active'])
+            ->logOnly(['department_id', 'academic_year_id', 'name', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -71,5 +73,13 @@ class SchoolClass extends Model
     public function students(): HasMany
     {
         return $this->hasMany(Student::class, 'class_id');
+    }
+
+    /**
+     * @return BelongsTo<AcademicYear, $this>
+     */
+    public function academicYear(): BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class);
     }
 }
