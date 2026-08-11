@@ -64,7 +64,7 @@ Ulangi buat keduanya — Dokploy → Project → Create → **Application** → 
 - Compose path: `docker-compose.yml` (root repo)
 - **Build Type: none / pull only** — jangan pilih build dari Dockerfile. Dokploy Compose app defaultnya cuma jalankan `docker compose pull && docker compose up -d` kalau tidak diarahkan build, jadi image ditarik langsung dari GHCR, bukan dibangun ulang di VPS.
 - Registry: pilih yang dari §4.2 (kalau private)
-- Domain: arahkan ke service `app`, port container **8080** (default nginx serversideup) — subdomain terpisah buat staging (misal `staging.your-domain`)
+- Domain: arahkan ke service `app`, port container **8081** (di-set via `NGINX_HTTP_PORT` di compose, default image sebenarnya 8080) — subdomain terpisah buat staging (misal `staging.your-domain`)
 
 ### 4.4 Environment variables
 
@@ -127,7 +127,7 @@ Dokploy app → Deployments → pilih deployment sebelumnya → Redeploy. Atau s
 
 ```bash
 docker build -t praktika:local .
-docker run --rm -p 8080:8080 --env-file .env praktika:local
+docker run --rm -p 8081:8081 -e NGINX_HTTP_PORT=8081 --env-file .env praktika:local
 ```
 
-Buka `http://localhost:8080`.
+Buka `http://localhost:8081`.
