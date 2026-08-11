@@ -17,6 +17,7 @@ enum ReportType: string
     case Journal = 'journal';
     case Assessment = 'assessment';
     case Monitoring = 'monitoring';
+    case StudentSummary = 'student_summary';
 
     public function label(): string
     {
@@ -25,6 +26,7 @@ enum ReportType: string
             self::Journal => 'Rekap Jurnal',
             self::Assessment => 'Rekap Nilai PKL',
             self::Monitoring => 'Rekap Monitoring',
+            self::StudentSummary => 'Rekap Siswa',
         };
     }
 
@@ -48,6 +50,8 @@ enum ReportType: string
             self::Journal => ['Siswa', 'NIS', 'Perusahaan', 'Total', 'Disetujui', 'Pending', 'Ditolak'],
             self::Assessment => ['Siswa', 'NIS', 'Perusahaan', 'Nilai Industri', 'Nilai Guru', 'Nilai Akhir', 'Grade', 'Status'],
             self::Monitoring => ['Siswa', 'NIS', 'Perusahaan', 'Guru', 'Jumlah Kunjungan', 'Kunjungan Terakhir'],
+            // Not a flat table — rendered by its own Blade view via ReportService::buildStudentSummary().
+            self::StudentSummary => [],
         };
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\DataTransferObjects\ReportDataset;
+use App\DataTransferObjects\StudentSummaryDataset;
 use App\Enums\AttendanceStatus;
 use App\Enums\PlacementStatus;
 use App\Enums\ReportType;
@@ -51,6 +52,126 @@ class ReportService
             requestedBy: $export->requester->name,
             generatedAt: CarbonImmutable::now()->format('d/m/Y H:i'),
         );
+    }
+
+    public function buildStudentSummary(ReportExport $export): StudentSummaryDataset
+    {
+        $export->loadMissing('requester');
+
+        $studentId = $this->filter($export, 'student_id');
+
+        if ($studentId === null) {
+            throw new \RuntimeException('Siswa belum dipilih.');
+        }
+
+        $placement = Placement::query()
+            ->visibleTo($export->requester)
+            ->whereIn('status', [PlacementStatus::Active->value, PlacementStatus::Completed->value])
+            ->where('student_id', $studentId)
+            ->with(['student.schoolClass', 'company', 'teacher', 'finalScore'])
+            ->latest('start_date')
+            ->first();
+
+        if ($placement === null) {
+            throw new \RuntimeException('Siswa tidak memiliki penempatan aktif atau selesai yang dapat dilaporkan.');
+        }
+
+        $attendance = $this->studentAttendanceStats($placement, $export);
+        $journal = $this->studentJournalStats($placement, $export);
+        $score = $placement->finalScore;
+
+        return new StudentSummaryDataset(
+            studentName: $placement->student->name,
+            nis: $placement->student->nis,
+            className: $placement->student->schoolClass->name,
+            companyName: $placement->company->name,
+            teacherName: $placement->teacher->name,
+            period: $placement->start_date->format('d/m/Y').' – '.$placement->end_date->format('d/m/Y'),
+            scope: $this->describeScope($export),
+            attendancePresent: $attendance['present'],
+            attendancePermit: $attendance['permit'],
+            attendanceSick: $attendance['sick'],
+            attendanceAbsent: $attendance['absent'],
+            attendanceRate: $attendance['rate'],
+            journalTotal: $journal['total'],
+            journalApproved: $journal['approved'],
+            journalPending: $journal['pending'],
+            journalRejected: $journal['rejected'],
+            industryScore: $score === null ? null : number_format((float) $score->industry_score, 2),
+            teacherScore: $score === null ? null : number_format((float) $score->teacher_score, 2),
+            finalScore: $score === null ? null : number_format((float) $score->final_score, 2),
+            grade: $score?->grade,
+            assessmentStatus: match (true) {
+                $score === null => 'Belum dinilai',
+                $score->isPublished() => 'Dipublikasikan',
+                default => 'Draft',
+            },
+            monitorings: $this->studentMonitoringVisits($placement, $export),
+            requestedBy: $export->requester->name,
+            generatedAt: CarbonImmutable::now()->format('d/m/Y H:i'),
+        );
+    }
+
+    /**
+     * @return array{present: int, permit: int, sick: int, absent: int, rate: string}
+     */
+    private function studentAttendanceStats(Placement $placement, ReportExport $export): array
+    {
+        $query = DB::table('attendances')
+            ->where('placement_id', $placement->id)
+            ->where('verification_status', '!=', VerificationStatus::Rejected->value);
+
+        $this->applyDateRange($query, $export, 'date');
+
+        $counts = $query->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        $present = (int) ($counts[AttendanceStatus::Present->value] ?? 0);
+        $permit = (int) ($counts[AttendanceStatus::Permit->value] ?? 0);
+        $sick = (int) ($counts[AttendanceStatus::Sick->value] ?? 0);
+        $absent = (int) ($counts[AttendanceStatus::Absent->value] ?? 0);
+        $total = $present + $permit + $sick + $absent;
+
+        $rate = $total === 0 ? 0.0 : round($present / $total * 100, 1);
+
+        return ['present' => $present, 'permit' => $permit, 'sick' => $sick, 'absent' => $absent, 'rate' => "{$rate}%"];
+    }
+
+    /**
+     * @return array{total: int, approved: int, pending: int, rejected: int}
+     */
+    private function studentJournalStats(Placement $placement, ReportExport $export): array
+    {
+        $query = DB::table('journals')->whereNull('deleted_at')->where('placement_id', $placement->id);
+
+        $this->applyDateRange($query, $export, 'date');
+
+        $counts = $query->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        $approved = (int) ($counts[ReviewStatus::Approved->value] ?? 0);
+        $pending = (int) ($counts[ReviewStatus::Pending->value] ?? 0);
+        $rejected = (int) ($counts[ReviewStatus::Rejected->value] ?? 0);
+
+        return ['total' => $approved + $pending + $rejected, 'approved' => $approved, 'pending' => $pending, 'rejected' => $rejected];
+    }
+
+    /**
+     * @return array<int, array{visit_date: string, note: string, recommendation: ?string}>
+     */
+    private function studentMonitoringVisits(Placement $placement, ReportExport $export): array
+    {
+        $query = DB::table('monitorings')->whereNull('deleted_at')->where('placement_id', $placement->id);
+
+        $this->applyDateRange($query, $export, 'visit_date');
+
+        return $query
+            ->orderBy('visit_date')
+            ->get(['visit_date', 'note', 'recommendation'])
+            ->map(fn (object $row): array => [
+                'visit_date' => CarbonImmutable::parse((string) $row->visit_date)->format('d/m/Y'),
+                'note' => (string) $row->note,
+                'recommendation' => $row->recommendation === null ? null : (string) $row->recommendation,
+            ])
+            ->all();
     }
 
     /**

@@ -44,7 +44,7 @@ final class PermissionCatalog
             'attachments' => ['create', 'delete'],
 
             // Reports.
-            'reports' => ['attendance', 'journal', 'assessment', 'monitoring'],
+            'reports' => ['attendance', 'journal', 'assessment', 'monitoring', 'student_summary'],
 
             // System.
             'users' => ['viewAny', 'view', 'create', 'update', 'delete', 'resetPassword', 'impersonate', 'toggleStatus'],
@@ -126,6 +126,7 @@ final class PermissionCatalog
             'attachments.create', 'attachments.delete',
 
             'reports.attendance', 'reports.journal', 'reports.assessment', 'reports.monitoring',
+            'reports.student_summary',
 
             'users.resetPassword',
             'settings.view',
@@ -162,6 +163,7 @@ final class PermissionCatalog
             'attachments.create', 'attachments.delete',
 
             'reports.attendance', 'reports.journal', 'reports.assessment', 'reports.monitoring',
+            'reports.student_summary',
         ];
     }
 
