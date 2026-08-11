@@ -6,19 +6,27 @@ namespace App\Http\Controllers\Report;
 
 use App\DataTransferObjects\TableRequest;
 use App\Enums\ReportFormat;
+use App\Enums\ReportStatus;
 use App\Enums\ReportType;
+use App\Exports\ReportSpreadsheet;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\StoreReportRequest;
-use App\Jobs\GenerateReportJob;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\ReportExport;
+use App\Services\ReportService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Excel as ExcelWriter;
+use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class ReportController extends Controller
 {
@@ -66,18 +74,48 @@ class ReportController extends Controller
         ]);
     }
 
-    public function store(StoreReportRequest $request): RedirectResponse
+    public function store(StoreReportRequest $request, ReportService $service): RedirectResponse
     {
         $export = ReportExport::create([
             'requested_by' => $request->user()->id,
             'type' => $request->enum('type', ReportType::class),
             'format' => $request->enum('format', ReportFormat::class),
             'filters' => $request->filters(),
+            'status' => ReportStatus::Processing,
         ]);
 
-        GenerateReportJob::dispatch($export);
+        try {
+            $dataset = $service->build($export);
 
-        return back()->with('success', 'Laporan sedang dibuat. Anda akan dapat mengunduhnya begitu selesai.');
+            $path = 'reports/'.$export->id.'.'.$export->format->extension();
+            $fileName = Str::slug($export->type->label())
+                .'-'.CarbonImmutable::now()->format('Ymd-His')
+                .'.'.$export->format->extension();
+
+            $contents = match ($export->format) {
+                ReportFormat::Pdf => Pdf::loadView('reports.pdf', ['dataset' => $dataset])->output(),
+                ReportFormat::Xlsx => Excel::raw(new ReportSpreadsheet($dataset), ExcelWriter::XLSX),
+            };
+
+            // Private disk: reports contain student data and are only ever streamed
+            // back to their owner through the authorized download route.
+            Storage::disk('local')->put($path, $contents);
+
+            $export->update([
+                'status' => ReportStatus::Completed,
+                'file_path' => $path,
+                'file_name' => $fileName,
+                'row_count' => count($dataset->rows),
+                'completed_at' => CarbonImmutable::now(),
+            ]);
+        } catch (Throwable $exception) {
+            $export->update([
+                'status' => ReportStatus::Failed,
+                'error' => Str::limit($exception->getMessage(), 1000),
+            ]);
+        }
+
+        return back()->with('success', 'Laporan berhasil dibuat.');
     }
 
     public function download(ReportExport $report): StreamedResponse

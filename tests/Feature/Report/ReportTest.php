@@ -8,7 +8,6 @@ use App\Enums\ReportStatus;
 use App\Enums\ReportType;
 use App\Enums\RoleName;
 use App\Enums\VerificationStatus;
-use App\Jobs\GenerateReportJob;
 use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\CompanySupervisor;
@@ -17,7 +16,6 @@ use App\Models\ReportExport;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\ReportService;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
@@ -38,39 +36,20 @@ beforeEach(function (): void {
     ]);
 });
 
-test('generating a report queues a job and records a pending export', function (): void {
-    Queue::fake();
+test('generating a report renders the file and completes the export in the same request', function (ReportFormat $format): void {
+    Storage::fake('local');
 
     $admin = userWithRole(RoleName::AdminPkl);
 
     $this->actingAs($admin)
-        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
+        ->post('/reports', ['type' => 'attendance', 'format' => $format->value])
         ->assertSessionHasNoErrors()
         ->assertRedirect();
 
     $export = ReportExport::query()->where('requested_by', $admin->id)->sole();
 
-    expect($export->status)->toBe(ReportStatus::Pending)
-        ->and($export->type)->toBe(ReportType::Attendance);
-
-    Queue::assertPushed(GenerateReportJob::class);
-});
-
-test('the queue job renders a file and completes the export', function (ReportFormat $format): void {
-    Storage::fake('local');
-
-    $admin = userWithRole(RoleName::AdminPkl);
-    $export = ReportExport::factory()->create([
-        'requested_by' => $admin->id,
-        'type' => ReportType::Attendance,
-        'format' => $format,
-    ]);
-
-    GenerateReportJob::dispatchSync($export);
-
-    $export->refresh();
-
     expect($export->status)->toBe(ReportStatus::Completed)
+        ->and($export->type)->toBe(ReportType::Attendance)
         ->and($export->file_path)->not->toBeNull()
         // One row per placement in scope.
         ->and($export->row_count)->toBe(1);
@@ -81,18 +60,36 @@ test('the queue job renders a file and completes the export', function (ReportFo
     'xlsx' => ReportFormat::Xlsx,
 ]);
 
+test('a report that fails to render records the error instead of a 500', function (): void {
+    $admin = userWithRole(RoleName::AdminPkl);
+
+    $this->mock(ReportService::class, function ($mock): void {
+        $mock->shouldReceive('build')->andThrow(new RuntimeException('disk penuh'));
+    });
+
+    $this->actingAs($admin)
+        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $export = ReportExport::query()->where('requested_by', $admin->id)->sole();
+
+    expect($export->status)->toBe(ReportStatus::Failed)
+        ->and($export->error)->toContain('disk penuh')
+        ->and($export->file_path)->toBeNull();
+});
+
 test('a completed report is downloaded only by its owner', function (): void {
     Storage::fake('local');
 
     $owner = userWithRole(RoleName::AdminPkl);
     $other = userWithRole(RoleName::AdminPkl);
 
-    $export = ReportExport::factory()->create([
-        'requested_by' => $owner->id,
-        'type' => ReportType::Attendance,
-        'format' => ReportFormat::Pdf,
-    ]);
-    GenerateReportJob::dispatchSync($export);
+    $this->actingAs($owner)
+        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
+        ->assertSessionHasNoErrors();
+
+    $export = ReportExport::query()->where('requested_by', $owner->id)->sole();
 
     $this->actingAs($owner)->get("/reports/{$export->id}/download")->assertOk();
 
@@ -116,6 +113,8 @@ test('a student can not reach the reports area at all', function (): void {
 });
 
 test('a supervisor can not generate a report type they lack', function (): void {
+    Storage::fake('local');
+
     $supervisor = CompanySupervisor::factory()->create(['company_id' => $this->company->id]);
 
     // Pembimbing Industri may pull attendance and journal recaps, never assessment.
@@ -150,29 +149,16 @@ test('the owner can delete a report and its file', function (): void {
     Storage::fake('local');
 
     $owner = userWithRole(RoleName::AdminPkl);
-    $export = ReportExport::factory()->create([
-        'requested_by' => $owner->id,
-        'type' => ReportType::Attendance,
-        'format' => ReportFormat::Pdf,
-    ]);
-    GenerateReportJob::dispatchSync($export);
-    $path = $export->refresh()->file_path;
+
+    $this->actingAs($owner)
+        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
+        ->assertSessionHasNoErrors();
+
+    $export = ReportExport::query()->where('requested_by', $owner->id)->sole();
+    $path = $export->file_path;
 
     $this->actingAs($owner)->delete("/reports/{$export->id}")->assertSessionHasNoErrors();
 
     Storage::disk('local')->assertMissing($path);
     expect(ReportExport::query()->whereKey($export->id)->exists())->toBeFalse();
-});
-
-test('the queue job records why it failed instead of hanging', function (): void {
-    $admin = userWithRole(RoleName::AdminPkl);
-    $export = ReportExport::factory()->create(['requested_by' => $admin->id]);
-
-    (new GenerateReportJob($export))->failed(new RuntimeException('disk penuh'));
-
-    $export->refresh();
-
-    expect($export->status)->toBe(ReportStatus::Failed)
-        ->and($export->error)->toContain('disk penuh')
-        ->and($export->file_path)->toBeNull();
 });
