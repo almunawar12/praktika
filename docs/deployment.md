@@ -88,8 +88,15 @@ DB_DATABASE=praktika               # praktika_staging di staging
 DB_USERNAME=praktika
 DB_PASSWORD=<secret>
 
+SESSION_DOMAIN=your-domain         # tanpa skema, staging.your-domain di staging
+SESSION_SECURE_COOKIE=true         # true HANYA kalau domain sudah HTTPS (§4.4.1) — kalau masih http, isi false
+
 FILESYSTEM_DISK=local   # atau s3, isi AWS_* kalau pakai s3
 ```
+
+#### 4.4.1 `SESSION_SECURE_COOKIE` vs HTTPS
+
+Kalau `SESSION_SECURE_COOKIE=true` tapi domain masih diakses lewat `http://` (belum ada SSL di Dokploy), browser nolak nyimpen cookie session — login kelihatan gagal/nge-loop padahal backend-nya bener. Aktifkan SSL dulu di Dokploy (Domain → Enable HTTPS / Let's Encrypt) baru set var ini `true`, sebaliknya biarin `false` selama masih http. `SESSION_ENCRYPT` beda hal — itu cuma enkripsi isi cookie, gak ada hubungan sama protokol http/https.
 
 `IMAGE_TAG` ini kunci "gak build di VPS" — app production isi `latest`, app staging isi `staging`, keduanya nunjuk tag yang sama yang di-push CI (§3), compose cuma pull.
 
