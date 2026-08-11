@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 
 # ---------- PHP dependencies ----------
-FROM composer:2 AS vendor
+FROM php:8.3-cli-alpine AS vendor
 WORKDIR /app
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN apk add --no-cache $PHPIZE_DEPS libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev zip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd zip
