@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\ReportFormat;
-use App\Enums\ReportStatus;
-use App\Enums\ReportType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +20,7 @@ return new class extends Migration
 
             $table->string('type');
             $table->string('format');
-            $table->string('status')->default(ReportStatus::Pending->value);
+            $table->string('status')->default('pending');
 
             // The scope the report was run with (period, department, company).
             // Kept so the history row is self-describing and a report can be re-run.
@@ -43,9 +40,11 @@ return new class extends Migration
             $table->index(['requested_by', 'created_at']);
         });
 
-        $types = implode("','", ReportType::values());
-        $formats = implode("','", ReportFormat::values());
-        $statuses = implode("','", ReportStatus::values());
+        // Frozen as literals: a migration is a snapshot of the schema at its own
+        // moment, and the enums it was written against may change or go away.
+        $types = implode("','", ['attendance', 'journal', 'assessment', 'monitoring']);
+        $formats = implode("','", ['pdf', 'xlsx']);
+        $statuses = implode("','", ['pending', 'processing', 'completed', 'failed']);
 
         DB::statement("ALTER TABLE report_exports ADD CONSTRAINT report_exports_type_check
              CHECK (type IN ('{$types}'))");

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\ReportType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -16,7 +15,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $types = implode("','", ReportType::values());
+        $types = implode("','", ['attendance', 'journal', 'assessment', 'monitoring', 'student_summary']);
 
         DB::statement('ALTER TABLE report_exports DROP CONSTRAINT report_exports_type_check');
         DB::statement("ALTER TABLE report_exports ADD CONSTRAINT report_exports_type_check

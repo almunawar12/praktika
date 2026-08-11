@@ -11,8 +11,8 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
 /**
- * Renders a ReportDataset as an XLSX sheet. Named to avoid a clash with the
- * ReportExport model — this is the file, not the request for one.
+ * Renders a ReportDataset as an XLSX sheet, streamed straight to the person who
+ * asked for it — nothing is written to disk.
  */
 final class ReportSpreadsheet implements FromArray, ShouldAutoSize, WithHeadings, WithTitle
 {

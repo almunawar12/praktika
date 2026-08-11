@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\DataTransferObjects\ReportFilters;
 use App\Enums\AttendanceStatus;
-use App\Enums\ReportType;
 use App\Enums\ReviewStatus;
 use App\Enums\RoleName;
 use App\Enums\VerificationStatus;
@@ -13,11 +13,24 @@ use App\Models\FinalScore;
 use App\Models\Journal;
 use App\Models\Monitoring;
 use App\Models\Placement;
-use App\Models\ReportExport;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\ReportService;
-use Illuminate\Support\Facades\Storage;
+
+function summaryFilters(?string $studentId, ?string $from = null, ?string $to = null): ReportFilters
+{
+    return new ReportFilters(
+        dateFrom: $from,
+        dateTo: $to,
+        departmentId: null,
+        companyId: null,
+        schoolClassId: null,
+        teacherId: null,
+        search: null,
+        studentId: $studentId,
+        perPage: 15,
+    );
+}
 
 beforeEach(function (): void {
     $this->company = Company::factory()->create(['quota' => 10]);
@@ -29,6 +42,8 @@ beforeEach(function (): void {
         'company_id' => $this->company->id,
         'teacher_id' => $this->teacher->id,
     ]);
+
+    $this->admin = userWithRole(RoleName::AdminPkl);
 });
 
 test('the service assembles attendance, journal, score, and monitoring for one placement', function (): void {
@@ -42,161 +57,101 @@ test('the service assembles attendance, journal, score, and monitoring for one p
         'status' => AttendanceStatus::Sick,
         'verification_status' => VerificationStatus::Verified,
     ]);
-
-    Journal::factory()->approved()->onDate('2026-01-10')->create(['placement_id' => $this->placement->id]);
-    Journal::factory()->onDate('2026-01-11')->create(['placement_id' => $this->placement->id]); // stays pending
-
-    FinalScore::factory()->create(['placement_id' => $this->placement->id]);
-
+    Journal::factory()->create([
+        'placement_id' => $this->placement->id,
+        'date' => '2026-01-05',
+        'status' => ReviewStatus::Approved,
+    ]);
     Monitoring::factory()->create([
         'placement_id' => $this->placement->id,
-        'teacher_id' => $this->teacher->id,
-        'note' => 'Siswa aktif dan disiplin.',
+        'visit_date' => '2026-01-07',
     ]);
+    FinalScore::factory()->create(['placement_id' => $this->placement->id]);
 
-    $guru = $this->teacher->user;
-    $export = ReportExport::factory()->create([
-        'requested_by' => $guru->id,
-        'type' => ReportType::StudentSummary,
-        'filters' => ['student_id' => $this->student->id],
-    ]);
+    $summary = app(ReportService::class)
+        ->studentSummary(summaryFilters($this->student->id), $this->admin);
 
-    $dataset = app(ReportService::class)->buildStudentSummary($export);
-
-    expect($dataset->studentName)->toBe($this->student->name)
-        ->and($dataset->nis)->toBe($this->student->nis)
-        ->and($dataset->attendancePresent)->toBe(1)
-        ->and($dataset->attendanceSick)->toBe(1)
-        ->and($dataset->attendanceRate)->toBe('50%')
-        ->and($dataset->journalTotal)->toBe(2)
-        ->and($dataset->journalApproved)->toBe(1)
-        ->and($dataset->journalPending)->toBe(1)
-        ->and($dataset->finalScore)->not->toBeNull()
-        ->and($dataset->monitorings)->toHaveCount(1)
-        ->and($dataset->monitorings[0]['note'])->toBe('Siswa aktif dan disiplin.');
+    expect($summary)->not->toBeNull()
+        ->and($summary->studentName)->toBe($this->student->name)
+        ->and($summary->attendancePresent)->toBe(1)
+        ->and($summary->attendanceSick)->toBe(1)
+        ->and($summary->journalApproved)->toBe(1)
+        ->and($summary->monitorings)->toHaveCount(1)
+        ->and($summary->finalScore)->not->toBeNull();
 });
 
-test('the service reports an unscored student without a final score', function (): void {
-    $guru = $this->teacher->user;
-    $export = ReportExport::factory()->create([
-        'requested_by' => $guru->id,
-        'type' => ReportType::StudentSummary,
-        'filters' => ['student_id' => $this->student->id],
-    ]);
+test('an unscored student is reported without a final score', function (): void {
+    $summary = app(ReportService::class)
+        ->studentSummary(summaryFilters($this->student->id), $this->admin);
 
-    $dataset = app(ReportService::class)->buildStudentSummary($export);
-
-    expect($dataset->finalScore)->toBeNull()
-        ->and($dataset->assessmentStatus)->toBe('Belum dinilai');
+    expect($summary->finalScore)->toBeNull()
+        ->and($summary->grade)->toBeNull()
+        ->and($summary->assessmentStatus)->toBe('Belum dinilai');
 });
 
-test('the service refuses a student outside the requester visibility scope', function (): void {
-    $otherTeacher = Teacher::factory()->create();
-    $guru = $otherTeacher->user;
-
-    $export = ReportExport::factory()->create([
-        'requested_by' => $guru->id,
-        'type' => ReportType::StudentSummary,
-        'filters' => ['student_id' => $this->student->id],
+test('the date range narrows the summary', function (): void {
+    Attendance::factory()->onDate('2026-01-05')->create([
+        'placement_id' => $this->placement->id,
+        'status' => AttendanceStatus::Present,
+        'verification_status' => VerificationStatus::Verified,
     ]);
-
-    app(ReportService::class)->buildStudentSummary($export);
-})->throws(RuntimeException::class);
-
-test('the service refuses a student with no active or completed placement', function (): void {
-    $admin = userWithRole(RoleName::AdminPkl);
-    $studentWithNoPlacement = Student::factory()->create();
-
-    $export = ReportExport::factory()->create([
-        'requested_by' => $admin->id,
-        'type' => ReportType::StudentSummary,
-        'filters' => ['student_id' => $studentWithNoPlacement->id],
-    ]);
-
-    app(ReportService::class)->buildStudentSummary($export);
-})->throws(RuntimeException::class);
-
-test('generating a student summary produces a completed PDF export', function (): void {
-    Storage::fake('local');
-
-    Attendance::factory()->create([
+    Attendance::factory()->onDate('2026-02-05')->create([
         'placement_id' => $this->placement->id,
         'status' => AttendanceStatus::Present,
         'verification_status' => VerificationStatus::Verified,
     ]);
 
-    $guru = $this->teacher->user;
+    $summary = app(ReportService::class)->studentSummary(
+        summaryFilters($this->student->id, '2026-01-01', '2026-01-31'),
+        $this->admin,
+    );
 
-    $this->actingAs($guru)
-        ->post('/reports', [
-            'type' => 'student_summary',
-            'format' => 'pdf',
-            'student_id' => $this->student->id,
-        ])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect();
-
-    $export = ReportExport::query()->where('requested_by', $guru->id)->sole();
-
-    expect($export->status)->toBe(\App\Enums\ReportStatus::Completed)
-        ->and($export->format)->toBe(\App\Enums\ReportFormat::Pdf)
-        ->and($export->file_path)->not->toBeNull();
-
-    Storage::disk('local')->assertExists($export->file_path);
+    expect($summary->attendancePresent)->toBe(1);
 });
 
-test('a student summary is forced to PDF even if xlsx is submitted', function (): void {
-    Storage::fake('local');
-
-    $guru = $this->teacher->user;
-
-    $this->actingAs($guru)
-        ->post('/reports', [
-            'type' => 'student_summary',
-            'format' => 'xlsx',
-            'student_id' => $this->student->id,
-        ])
-        ->assertSessionHasNoErrors();
-
-    $export = ReportExport::query()->where('requested_by', $guru->id)->sole();
-
-    expect($export->format)->toBe(\App\Enums\ReportFormat::Pdf);
+test('the screen shows an empty state until a student is chosen', function (): void {
+    $this->actingAs($this->admin)
+        ->get('/reports/student_summary')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('reports/show')
+            ->where('summary', null)
+            ->has('filterOptions.students', 1));
 });
 
-test('a supervisor can not generate a student summary at all', function (): void {
-    $supervisor = \App\Models\CompanySupervisor::factory()->create(['company_id' => $this->company->id]);
-
-    $this->actingAs($supervisor->user)
-        ->post('/reports', [
-            'type' => 'student_summary',
-            'format' => 'pdf',
-            'student_id' => $this->student->id,
-        ])
-        ->assertForbidden();
+test('choosing a student renders the card', function (): void {
+    $this->actingAs($this->admin)
+        ->get("/reports/student_summary?student_id={$this->student->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('summary.studentName', $this->student->name));
 });
 
-test('a guru pembimbing generating a summary for a student outside their placements fails', function (): void {
-    Storage::fake('local');
+test('downloading the summary streams a pdf', function (): void {
+    $this->actingAs($this->admin)
+        ->get("/reports/student_summary/download?student_id={$this->student->id}")
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
 
-    $otherStudent = Student::factory()->create();
-    $otherTeacher = Teacher::factory()->create();
+test('a summary for a student outside the users scope is a 404', function (): void {
+    $outsider = Student::factory()->create();
+
     Placement::factory()->active()->create([
-        'student_id' => $otherStudent->id,
-        'teacher_id' => $otherTeacher->id,
+        'student_id' => $outsider->id,
+        'company_id' => Company::factory()->create(['quota' => 10])->id,
+        'teacher_id' => Teacher::factory()->create()->id,
     ]);
 
-    $guru = $this->teacher->user;
+    $guru = userWithRole(RoleName::GuruPembimbing);
 
     $this->actingAs($guru)
-        ->post('/reports', [
-            'type' => 'student_summary',
-            'format' => 'pdf',
-            'student_id' => $otherStudent->id,
-        ])
-        ->assertSessionHasNoErrors();
+        ->get("/reports/student_summary/download?student_id={$outsider->id}")
+        ->assertNotFound();
+});
 
-    $export = ReportExport::query()->where('requested_by', $guru->id)->sole();
-
-    expect($export->status)->toBe(\App\Enums\ReportStatus::Failed)
-        ->and($export->error)->not->toBeNull();
+test('a supervisor may not open the student summary at all', function (): void {
+    $this->actingAs(userWithRole(RoleName::PembimbingIndustri))
+        ->get('/reports/student_summary')
+        ->assertForbidden();
 });
