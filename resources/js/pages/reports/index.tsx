@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { Combobox } from '@/components/shared/combobox';
 import { Field } from '@/components/shared/field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ type Props = {
         departments: { id: string; name: string }[];
         companies: { id: string; name: string }[];
     };
+    students: SelectOption[];
 };
 
 const NONE = 'all';
@@ -78,6 +80,7 @@ export default function ReportIndex({
     types,
     formats,
     filterOptions,
+    students,
 }: Props) {
     const { sortBy, goToPage, setPerPage } = useTableQuery('/reports', table);
 
@@ -87,6 +90,9 @@ export default function ReportIndex({
     const [format, setFormat] = useState(formats[0]?.value ?? 'pdf');
     const [departmentId, setDepartmentId] = useState(NONE);
     const [companyId, setCompanyId] = useState(NONE);
+    const [studentId, setStudentId] = useState('');
+
+    const isStudentSummary = type === 'student_summary';
 
     const columns: Column<ReportRow>[] = [
         {
@@ -186,6 +192,7 @@ export default function ReportIndex({
                             onSuccess={() => {
                                 setDepartmentId(NONE);
                                 setCompanyId(NONE);
+                                setStudentId('');
                             }}
                         >
                             {({ processing, errors }) => (
@@ -221,38 +228,85 @@ export default function ReportIndex({
                                         </Select>
                                     </Field>
 
-                                    <input
-                                        type="hidden"
-                                        name="format"
-                                        value={format}
-                                    />
-                                    <Field
-                                        id="format"
-                                        label="Format"
-                                        error={errors.format}
-                                        required
-                                    >
-                                        <Select
-                                            value={format}
-                                            onValueChange={setFormat}
-                                        >
-                                            <SelectTrigger id="format">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {formats.map((option) => (
-                                                    <SelectItem
-                                                        key={option.value}
-                                                        value={option.value}
-                                                    >
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </Field>
+                                    {isStudentSummary ? (
+                                        <>
+                                            <input
+                                                type="hidden"
+                                                name="format"
+                                                value="pdf"
+                                            />
+                                            <input
+                                                type="hidden"
+                                                name="student_id"
+                                                value={studentId}
+                                            />
+                                            <Field
+                                                id="student_id"
+                                                label="Siswa"
+                                                error={errors.student_id}
+                                                required
+                                            >
+                                                <Combobox
+                                                    id="student_id"
+                                                    value={studentId}
+                                                    onValueChange={
+                                                        setStudentId
+                                                    }
+                                                    options={students}
+                                                    placeholder="Pilih siswa"
+                                                    searchPlaceholder="Cari nama/NIS..."
+                                                    emptyText="Tidak ada siswa."
+                                                    aria-invalid={
+                                                        !!errors.student_id
+                                                    }
+                                                />
+                                            </Field>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <input
+                                                type="hidden"
+                                                name="format"
+                                                value={format}
+                                            />
+                                            <Field
+                                                id="format"
+                                                label="Format"
+                                                error={errors.format}
+                                                required
+                                            >
+                                                <Select
+                                                    value={format}
+                                                    onValueChange={setFormat}
+                                                >
+                                                    <SelectTrigger id="format">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {formats.map(
+                                                            (option) => (
+                                                                <SelectItem
+                                                                    key={
+                                                                        option.value
+                                                                    }
+                                                                    value={
+                                                                        option.value
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        option.label
+                                                                    }
+                                                                </SelectItem>
+                                                            ),
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            </Field>
+                                        </>
+                                    )}
 
-                                    {filterOptions.departments.length > 0 ? (
+                                    {!isStudentSummary &&
+                                    filterOptions.departments.length > 0 ? (
                                         <Field
                                             id="department_id"
                                             label="Jurusan (opsional)"
@@ -295,7 +349,8 @@ export default function ReportIndex({
                                         </Field>
                                     ) : null}
 
-                                    {filterOptions.companies.length > 0 ? (
+                                    {!isStudentSummary &&
+                                    filterOptions.companies.length > 0 ? (
                                         <Field
                                             id="company_id"
                                             label="Perusahaan (opsional)"
@@ -365,7 +420,12 @@ export default function ReportIndex({
 
                                     <Button
                                         type="submit"
-                                        disabled={processing || type === ''}
+                                        disabled={
+                                            processing ||
+                                            type === '' ||
+                                            (isStudentSummary &&
+                                                studentId === '')
+                                        }
                                     >
                                         {processing ? (
                                             <LoaderCircle
