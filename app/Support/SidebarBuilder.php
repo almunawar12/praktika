@@ -53,11 +53,11 @@ final class SidebarBuilder
             ]),
 
             $this->group('Laporan', [
-                $this->item('Rekap Absensi', 'FileSpreadsheet', 'reports.attendance', route: 'reports.index', query: ['type' => 'attendance']),
-                $this->item('Rekap Jurnal', 'FileText', 'reports.journal', route: 'reports.index', query: ['type' => 'journal']),
-                $this->item('Nilai PKL', 'FileBadge', 'reports.assessment', route: 'reports.index', query: ['type' => 'assessment']),
-                $this->item('Monitoring', 'FileSearch', 'reports.monitoring', route: 'reports.index', query: ['type' => 'monitoring']),
-                $this->item('Rekap Siswa', 'IdCard', 'reports.student_summary', route: 'reports.index', query: ['type' => 'student_summary']),
+                $this->item('Rekap Absensi', 'FileSpreadsheet', 'reports.attendance', route: 'reports.show', query: ['type' => 'attendance']),
+                $this->item('Rekap Jurnal', 'FileText', 'reports.journal', route: 'reports.show', query: ['type' => 'journal']),
+                $this->item('Nilai PKL', 'FileBadge', 'reports.assessment', route: 'reports.show', query: ['type' => 'assessment']),
+                $this->item('Monitoring', 'FileSearch', 'reports.monitoring', route: 'reports.show', query: ['type' => 'monitoring']),
+                $this->item('Rekap Siswa', 'IdCard', 'reports.student_summary', route: 'reports.show', query: ['type' => 'student_summary']),
             ]),
 
             $this->group('Sistem', [
