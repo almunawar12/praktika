@@ -1,6 +1,6 @@
 import { Form, router } from '@inertiajs/react';
 import { Download, FileDown, LoaderCircle, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { DataTable } from '@/components/data-table/data-table';
 import type { Column } from '@/components/data-table/data-table';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
@@ -87,24 +87,6 @@ export default function ReportIndex({
     const [format, setFormat] = useState(formats[0]?.value ?? 'pdf');
     const [departmentId, setDepartmentId] = useState(NONE);
     const [companyId, setCompanyId] = useState(NONE);
-
-    // Reports build on the queue, so a fresh row starts pending/processing. Poll
-    // while any is still in flight so the download button appears on its own.
-    const hasInFlight = exports.data.some(
-        (row) => row.status === 'pending' || row.status === 'processing',
-    );
-
-    useEffect(() => {
-        if (!hasInFlight) {
-            return;
-        }
-
-        const timer = window.setInterval(() => {
-            router.reload({ only: ['exports'] });
-        }, 4000);
-
-        return () => window.clearInterval(timer);
-    }, [hasInFlight]);
 
     const columns: Column<ReportRow>[] = [
         {
