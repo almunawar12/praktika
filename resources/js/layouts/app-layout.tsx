@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { GraduationCap, Menu, UserCog } from 'lucide-react';
+import { Menu, UserCog } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -26,9 +26,12 @@ type AppLayoutProps = PropsWithChildren<{
 function Brand() {
     return (
         <div className="flex shrink-0 items-center gap-2 px-4 py-4 font-semibold">
-            <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <GraduationCap className="size-5" aria-hidden="true" />
-            </span>
+            <img
+                src="/praktika-logo.png"
+                alt=""
+                aria-hidden="true"
+                className="size-8"
+            />
             Praktika
         </div>
     );

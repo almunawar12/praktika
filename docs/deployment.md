@@ -4,9 +4,10 @@ Praktika di-deploy sebagai satu image Docker (php-fpm+nginx via `serversideup/ph
 
 ## 1. File terkait
 
-- [Dockerfile](../Dockerfile) — multi-stage build: build asset node, composer install, image runtime final.
+- [Dockerfile](../Dockerfile) — multi-stage build: build asset node, composer install, image runtime final. Cuma dipakai CI, VPS tidak build ini.
 - [.dockerignore](../.dockerignore) — pangkas build context.
 - [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) — build+push saat push ke `main`/`staging`, lalu panggil webhook Dokploy.
+- [docker-compose.yml](../docker-compose.yml) — dipakai Dokploy (app type **Compose**), tarik image jadi dari GHCR, tanpa build di VPS.
 
 ## 2. Setup GitHub
 
@@ -55,23 +56,28 @@ Dokploy → Settings → Registry → Add Registry (sekali saja, dipakai kedua a
 
 Skip kalau package dibuat public.
 
-### 4.3 Buat aplikasi
+### 4.3 Buat aplikasi (type Compose)
 
-Ulangi buat keduanya — Dokploy → Project → Create → **Application** → source type **Docker Image**:
+Ulangi buat keduanya — Dokploy → Project → Create → **Application** → source type **Compose**:
 
-- **praktika-production**: image `ghcr.io/<owner>/<repo>:latest`
-- **praktika-staging**: image `ghcr.io/<owner>/<repo>:staging`
+- Source: Git repo ini, branch `main` untuk app production / `staging` untuk app staging
+- Compose path: `docker-compose.yml` (root repo)
+- **Build Type: none / pull only** — jangan pilih build dari Dockerfile. Dokploy Compose app defaultnya cuma jalankan `docker compose pull && docker compose up -d` kalau tidak diarahkan build, jadi image ditarik langsung dari GHCR, bukan dibangun ulang di VPS.
 - Registry: pilih yang dari §4.2 (kalau private)
-- Port: container listen di **8080** (default nginx serversideup) — map ke 80/443 lewat domain setting Dokploy, subdomain terpisah buat staging (misal `staging.your-domain`)
+- Domain: arahkan ke service `app`, port container **8080** (default nginx serversideup) — subdomain terpisah buat staging (misal `staging.your-domain`)
 
 ### 4.4 Environment variables
 
-Set per app Dokploy (nilai dari `.env.example`, disesuaikan per environment):
+`docker-compose.yml` baca semua nilai lewat `${VAR}` — isi di tab Environment app Dokploy (nilai dari `.env.example`, disesuaikan per environment):
 
 ```
+GHCR_OWNER=<owner>
+GHCR_REPO=<repo>
+IMAGE_TAG=latest            # "staging" di app staging
+
 APP_NAME=Praktika
-APP_ENV=production        # atau "staging" di app staging
-APP_KEY=                  # php artisan key:generate --show, paste hasilnya — beda key tiap env
+APP_ENV=production          # atau "staging" di app staging
+APP_KEY=                    # php artisan key:generate --show, paste hasilnya — beda key tiap env
 APP_DEBUG=false
 APP_URL=https://your-domain          # https://staging.your-domain di staging
 
@@ -82,21 +88,12 @@ DB_DATABASE=praktika               # praktika_staging di staging
 DB_USERNAME=praktika
 DB_PASSWORD=<secret>
 
-SESSION_DRIVER=database
-SESSION_ENCRYPT=true
-QUEUE_CONNECTION=database
-CACHE_STORE=database
-FILESYSTEM_DISK=local   # atau s3, pakai var AWS_* di bawah
-
-AUTORUN_ENABLED=true
-AUTORUN_LARAVEL_MIGRATION=true
-AUTORUN_LARAVEL_STORAGE_LINK=true
-AUTORUN_LARAVEL_CONFIG_CACHE=true
-AUTORUN_LARAVEL_ROUTE_CACHE=true
-AUTORUN_LARAVEL_VIEW_CACHE=true
+FILESYSTEM_DISK=local   # atau s3, isi AWS_* kalau pakai s3
 ```
 
-Var `AUTORUN_*` itu entrypoint hook image `serversideup/php` — jalankan migration + cache warmup saat container start, tidak perlu entrypoint script custom. `AUTORUN_LARAVEL_MIGRATION` jalankan `php artisan migrate --force`.
+`IMAGE_TAG` ini kunci "gak build di VPS" — app production isi `latest`, app staging isi `staging`, keduanya nunjuk tag yang sama yang di-push CI (§3), compose cuma pull.
+
+Var `AUTORUN_*` di compose itu entrypoint hook image `serversideup/php` — jalankan migration + cache warmup saat container start, tidak perlu entrypoint script custom. `AUTORUN_LARAVEL_MIGRATION` jalankan `php artisan migrate --force`.
 
 Jangan pernah share `APP_KEY`, DB, atau bucket S3 antara production dan staging — secret terpisah, data terpisah.
 
@@ -110,7 +107,7 @@ Mount volume buat `storage/app` (upload user: foto absensi dll) kalau `FILESYSTE
 
 ### 4.7 Webhook deploy
 
-Tiap app Dokploy → Deployments → Webhook → copy URL → simpan ke secret `DOKPLOY_DEPLOY_WEBHOOK` di GitHub Environment yang sesuai (§4.1). Trigger webhook bikin Dokploy pull tag image yang dikonfigurasi lalu redeploy.
+Tiap app Dokploy → Deployments → Webhook → copy URL → simpan ke secret `DOKPLOY_DEPLOY_WEBHOOK` di GitHub Environment yang sesuai (§4.1). Trigger webhook bikin Dokploy jalankan `docker compose pull && docker compose up -d` — cuma pull tag (`IMAGE_TAG`) yang dikonfigurasi, tidak build ulang.
 
 ## 5. Ringkasan alur
 
