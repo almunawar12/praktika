@@ -13,6 +13,9 @@ RUN npm run build
 # ---------- PHP dependencies ----------
 FROM composer:2 AS vendor
 WORKDIR /app
+RUN apk add --no-cache $PHPIZE_DEPS libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev zip \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd zip
 COPY database/ database/
 COPY composer.json composer.lock ./
 RUN composer install \
