@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -62,6 +63,15 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureDefaults(): void
     {
+        // Behind Dokploy/Traefik, SSL terminates at the proxy — the app sees a
+        // plain-http connection. trustProxies() alone depends on the proxy
+        // forwarding X-Forwarded-Proto correctly; this forces the scheme from
+        // APP_URL directly so asset()/url() never regress to http and trip
+        // mixed-content blocking, regardless of proxy header behavior.
+        if (str_starts_with(config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         Date::use(CarbonImmutable::class);
 
         Model::shouldBeStrict(! app()->isProduction());
