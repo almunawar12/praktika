@@ -32,12 +32,12 @@ beforeEach(function (): void {
 });
 
 test('the service assembles attendance, journal, score, and monitoring for one placement', function (): void {
-    Attendance::factory()->create([
+    Attendance::factory()->onDate('2026-01-05')->create([
         'placement_id' => $this->placement->id,
         'status' => AttendanceStatus::Present,
         'verification_status' => VerificationStatus::Verified,
     ]);
-    Attendance::factory()->create([
+    Attendance::factory()->onDate('2026-01-06')->create([
         'placement_id' => $this->placement->id,
         'status' => AttendanceStatus::Sick,
         'verification_status' => VerificationStatus::Verified,
@@ -115,3 +115,88 @@ test('the service refuses a student with no active or completed placement', func
 
     app(ReportService::class)->buildStudentSummary($export);
 })->throws(RuntimeException::class);
+
+test('generating a student summary produces a completed PDF export', function (): void {
+    Storage::fake('local');
+
+    Attendance::factory()->create([
+        'placement_id' => $this->placement->id,
+        'status' => AttendanceStatus::Present,
+        'verification_status' => VerificationStatus::Verified,
+    ]);
+
+    $guru = $this->teacher->user;
+
+    $this->actingAs($guru)
+        ->post('/reports', [
+            'type' => 'student_summary',
+            'format' => 'pdf',
+            'student_id' => $this->student->id,
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $export = ReportExport::query()->where('requested_by', $guru->id)->sole();
+
+    expect($export->status)->toBe(\App\Enums\ReportStatus::Completed)
+        ->and($export->format)->toBe(\App\Enums\ReportFormat::Pdf)
+        ->and($export->file_path)->not->toBeNull();
+
+    Storage::disk('local')->assertExists($export->file_path);
+});
+
+test('a student summary is forced to PDF even if xlsx is submitted', function (): void {
+    Storage::fake('local');
+
+    $guru = $this->teacher->user;
+
+    $this->actingAs($guru)
+        ->post('/reports', [
+            'type' => 'student_summary',
+            'format' => 'xlsx',
+            'student_id' => $this->student->id,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $export = ReportExport::query()->where('requested_by', $guru->id)->sole();
+
+    expect($export->format)->toBe(\App\Enums\ReportFormat::Pdf);
+});
+
+test('a supervisor can not generate a student summary at all', function (): void {
+    $supervisor = \App\Models\CompanySupervisor::factory()->create(['company_id' => $this->company->id]);
+
+    $this->actingAs($supervisor->user)
+        ->post('/reports', [
+            'type' => 'student_summary',
+            'format' => 'pdf',
+            'student_id' => $this->student->id,
+        ])
+        ->assertForbidden();
+});
+
+test('a guru pembimbing generating a summary for a student outside their placements fails', function (): void {
+    Storage::fake('local');
+
+    $otherStudent = Student::factory()->create();
+    $otherTeacher = Teacher::factory()->create();
+    Placement::factory()->active()->create([
+        'student_id' => $otherStudent->id,
+        'teacher_id' => $otherTeacher->id,
+    ]);
+
+    $guru = $this->teacher->user;
+
+    $this->actingAs($guru)
+        ->post('/reports', [
+            'type' => 'student_summary',
+            'format' => 'pdf',
+            'student_id' => $otherStudent->id,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $export = ReportExport::query()->where('requested_by', $guru->id)->sole();
+
+    expect($export->status)->toBe(\App\Enums\ReportStatus::Failed)
+        ->and($export->error)->not->toBeNull();
+});

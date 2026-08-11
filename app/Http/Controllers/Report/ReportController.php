@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Report;
 
 use App\DataTransferObjects\TableRequest;
+use App\Enums\PlacementStatus;
 use App\Enums\ReportFormat;
 use App\Enums\ReportStatus;
 use App\Enums\ReportType;
@@ -13,7 +14,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\StoreReportRequest;
 use App\Models\Company;
 use App\Models\Department;
+use App\Models\Placement;
 use App\Models\ReportExport;
+use App\Models\Student;
 use App\Services\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
@@ -71,31 +74,55 @@ class ReportController extends Controller
                     ? Company::query()->visibleTo($user)->orderBy('name')->get(['id', 'name'])
                     : [],
             ],
+            'students' => $user->can('reports.student_summary')
+                ? Placement::query()
+                    ->visibleTo($user)
+                    ->whereIn('status', [PlacementStatus::Active->value, PlacementStatus::Completed->value])
+                    ->with('student.schoolClass')
+                    ->get()
+                    ->pluck('student')
+                    ->unique('id')
+                    ->sortBy('name')
+                    ->map(fn (Student $s): array => [
+                        'value' => $s->id,
+                        'label' => "{$s->name} — {$s->nis} ({$s->schoolClass->name})",
+                    ])
+                    ->values()
+                : [],
         ]);
     }
 
     public function store(StoreReportRequest $request, ReportService $service): RedirectResponse
     {
+        $type = $request->enum('type', ReportType::class);
+        $format = $type === ReportType::StudentSummary ? ReportFormat::Pdf : $request->enum('format', ReportFormat::class);
+
         $export = ReportExport::create([
             'requested_by' => $request->user()->id,
-            'type' => $request->enum('type', ReportType::class),
-            'format' => $request->enum('format', ReportFormat::class),
+            'type' => $type,
+            'format' => $format,
             'filters' => $request->filters(),
             'status' => ReportStatus::Processing,
         ]);
 
         try {
-            $dataset = $service->build($export);
+            if ($type === ReportType::StudentSummary) {
+                $summary = $service->buildStudentSummary($export);
+                $contents = Pdf::loadView('reports.student-summary', ['dataset' => $summary])->output();
+                $rowCount = 1;
+            } else {
+                $dataset = $service->build($export);
+                $contents = match ($export->format) {
+                    ReportFormat::Pdf => Pdf::loadView('reports.pdf', ['dataset' => $dataset])->output(),
+                    ReportFormat::Xlsx => Excel::raw(new ReportSpreadsheet($dataset), ExcelWriter::XLSX),
+                };
+                $rowCount = count($dataset->rows);
+            }
 
             $path = 'reports/'.$export->id.'.'.$export->format->extension();
             $fileName = Str::slug($export->type->label())
                 .'-'.CarbonImmutable::now()->format('Ymd-His')
                 .'.'.$export->format->extension();
-
-            $contents = match ($export->format) {
-                ReportFormat::Pdf => Pdf::loadView('reports.pdf', ['dataset' => $dataset])->output(),
-                ReportFormat::Xlsx => Excel::raw(new ReportSpreadsheet($dataset), ExcelWriter::XLSX),
-            };
 
             // Private disk: reports contain student data and are only ever streamed
             // back to their owner through the authorized download route.
@@ -105,7 +132,7 @@ class ReportController extends Controller
                 'status' => ReportStatus::Completed,
                 'file_path' => $path,
                 'file_name' => $fileName,
-                'row_count' => count($dataset->rows),
+                'row_count' => $rowCount,
                 'completed_at' => CarbonImmutable::now(),
             ]);
         } catch (Throwable $exception) {

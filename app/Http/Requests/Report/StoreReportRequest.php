@@ -37,6 +37,7 @@ class StoreReportRequest extends FormRequest
             'company_id' => ['nullable', 'uuid', Rule::exists('companies', 'id')],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'student_id' => ['required_if:type,student_summary', 'uuid', Rule::exists('students', 'id')],
         ];
     }
 
@@ -52,6 +53,7 @@ class StoreReportRequest extends FormRequest
             'company_id' => (string) $this->input('company_id', ''),
             'date_from' => (string) $this->input('date_from', ''),
             'date_to' => (string) $this->input('date_to', ''),
+            'student_id' => (string) $this->input('student_id', ''),
         ], fn (string $value): bool => $value !== '');
     }
 
@@ -67,6 +69,7 @@ class StoreReportRequest extends FormRequest
             'company_id' => 'perusahaan',
             'date_from' => 'tanggal mulai',
             'date_to' => 'tanggal akhir',
+            'student_id' => 'siswa',
         ];
     }
 }

@@ -57,6 +57,7 @@ final class SidebarBuilder
                 $this->item('Rekap Jurnal', 'FileText', 'reports.journal', route: 'reports.index', query: ['type' => 'journal']),
                 $this->item('Nilai PKL', 'FileBadge', 'reports.assessment', route: 'reports.index', query: ['type' => 'assessment']),
                 $this->item('Monitoring', 'FileSearch', 'reports.monitoring', route: 'reports.index', query: ['type' => 'monitoring']),
+                $this->item('Rekap Siswa', 'IdCard', 'reports.student_summary', route: 'reports.index', query: ['type' => 'student_summary']),
             ]),
 
             $this->group('Sistem', [
