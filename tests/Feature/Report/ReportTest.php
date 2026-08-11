@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
+use App\DataTransferObjects\ReportFilters;
 use App\Enums\AttendanceStatus;
 use App\Enums\ReportFormat;
-use App\Enums\ReportStatus;
 use App\Enums\ReportType;
 use App\Enums\RoleName;
 use App\Enums\VerificationStatus;
+use App\Models\Activity;
 use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\CompanySupervisor;
 use App\Models\Placement;
-use App\Models\ReportExport;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\ReportService;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 beforeEach(function (): void {
     $this->company = Company::factory()->create(['quota' => 10]);
     $this->teacher = Teacher::factory()->create();
-    $this->student = Student::factory()->create();
+    $this->student = Student::factory()->create(['name' => 'Andi Pratama', 'nis' => '2001']);
 
     $this->placement = Placement::factory()->active()->create([
         'student_id' => $this->student->id,
@@ -36,129 +36,136 @@ beforeEach(function (): void {
     ]);
 });
 
-test('generating a report renders the file and completes the export in the same request', function (ReportFormat $format): void {
-    Storage::fake('local');
+test('the reports index redirects to the first type the user may open', function (): void {
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/reports')
+        ->assertRedirect('/reports/attendance');
+});
 
+test('a student may not reach the reports area', function (): void {
+    $student = userWithRole(RoleName::Siswa);
+
+    $this->actingAs($student)->get('/reports')->assertForbidden();
+    $this->actingAs($student)->get('/reports/attendance')->assertForbidden();
+});
+
+test('a report the user has no permission for is forbidden', function (): void {
+    $this->actingAs(userWithRole(RoleName::PembimbingIndustri))
+        ->get('/reports/assessment')
+        ->assertForbidden();
+});
+
+test('an unknown report type is a 404', function (): void {
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/reports/tidak-ada')
+        ->assertNotFound();
+});
+
+test('the report screen renders rows straight from the filters', function (): void {
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/reports/attendance')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('reports/show')
+            ->where('type.value', 'attendance')
+            ->has('columns', 8)
+            ->has('rows.data', 1)
+            ->where('rows.data.0.cells.0', 'Andi Pratama'));
+});
+
+test('search narrows the rendered rows', function (): void {
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/reports/attendance?search=zzz')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('rows.data', 0));
+});
+
+test('invalid filters are rejected with field errors', function (): void {
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
+        ->get('/reports/attendance?date_from=2026-03-01&date_to=2026-01-01')
+        ->assertSessionHasErrors('date_to');
+});
+
+test('a supervisor only sees their own company on screen', function (): void {
+    $otherCompany = Company::factory()->create(['quota' => 10]);
+    Placement::factory()->active()->create([
+        'student_id' => Student::factory()->create(['name' => 'Budi'])->id,
+        'company_id' => $otherCompany->id,
+        'teacher_id' => $this->teacher->id,
+    ]);
+
+    $user = userWithRole(RoleName::PembimbingIndustri);
+    CompanySupervisor::factory()->create([
+        'user_id' => $user->id,
+        'company_id' => $this->company->id,
+    ]);
+
+    $this->actingAs($user->fresh())
+        ->get('/reports/attendance')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('rows.data', 1)
+            ->where('rows.data.0.cells.0', 'Andi Pratama'));
+});
+
+test('downloading streams the file without storing it and records the activity', function (ReportFormat $format): void {
     $admin = userWithRole(RoleName::AdminPkl);
 
-    $this->actingAs($admin)
-        ->post('/reports', ['type' => 'attendance', 'format' => $format->value])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect();
+    $response = $this->actingAs($admin)
+        ->get("/reports/attendance/download?format={$format->value}");
 
-    $export = ReportExport::query()->where('requested_by', $admin->id)->sole();
+    $response->assertOk()
+        ->assertHeader('content-type', $format->contentType());
 
-    expect($export->status)->toBe(ReportStatus::Completed)
-        ->and($export->type)->toBe(ReportType::Attendance)
-        ->and($export->file_path)->not->toBeNull()
-        // One row per placement in scope.
-        ->and($export->row_count)->toBe(1);
+    expect($response->headers->get('content-disposition'))->toContain('rekap-absensi-');
 
-    Storage::disk('local')->assertExists($export->file_path);
+    $activity = Activity::query()->where('description', 'report.download')->sole();
+
+    expect($activity->causer_id)->toBe($admin->id)
+        ->and($activity->properties['type'])->toBe('attendance')
+        ->and($activity->properties['format'])->toBe($format->value);
 })->with([
     'pdf' => ReportFormat::Pdf,
     'xlsx' => ReportFormat::Xlsx,
 ]);
 
-test('a report that fails to render records the error instead of a 500', function (): void {
+test('a download covers every row, not just the visible page', function (): void {
+    foreach (range(1, 20) as $index) {
+        Placement::factory()->active()->create([
+            'student_id' => Student::factory()->create(['nis' => "30{$index}"])->id,
+            'company_id' => $this->company->id,
+            'teacher_id' => $this->teacher->id,
+        ]);
+    }
+
     $admin = userWithRole(RoleName::AdminPkl);
 
-    $this->mock(ReportService::class, function ($mock): void {
-        $mock->shouldReceive('build')->andThrow(new RuntimeException('disk penuh'));
-    });
+    $this->actingAs($admin)
+        ->get('/reports/attendance')
+        ->assertInertia(fn ($page) => $page->has('rows.data', 15)->where('rows.total', 21));
 
     $this->actingAs($admin)
-        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect();
+        ->get('/reports/attendance/download?format=xlsx')
+        ->assertOk();
 
-    $export = ReportExport::query()->where('requested_by', $admin->id)->sole();
+    // The spreadsheet is built from dataset(), which is never paginated.
+    $dataset = app(ReportService::class)->dataset(
+        ReportType::Attendance,
+        ReportFilters::fromRequest(Request::create('/reports/attendance'), ReportType::Attendance),
+        $admin,
+    );
 
-    expect($export->status)->toBe(ReportStatus::Failed)
-        ->and($export->error)->toContain('disk penuh')
-        ->and($export->file_path)->toBeNull();
+    expect($dataset->rows)->toHaveCount(21);
 });
 
-test('a completed report is downloaded only by its owner', function (): void {
-    Storage::fake('local');
-
-    $owner = userWithRole(RoleName::AdminPkl);
-    $other = userWithRole(RoleName::AdminPkl);
-
-    $this->actingAs($owner)
-        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
-        ->assertSessionHasNoErrors();
-
-    $export = ReportExport::query()->where('requested_by', $owner->id)->sole();
-
-    $this->actingAs($owner)->get("/reports/{$export->id}/download")->assertOk();
-
-    // Another admin holds every report permission, yet the file is not theirs.
-    $this->actingAs($other)->get("/reports/{$export->id}/download")->assertForbidden();
-});
-
-test('a report that is not finished can not be downloaded', function (): void {
-    $owner = userWithRole(RoleName::AdminPkl);
-    $export = ReportExport::factory()->create(['requested_by' => $owner->id]);
-
-    $this->actingAs($owner)->get("/reports/{$export->id}/download")->assertNotFound();
-});
-
-test('a student can not reach the reports area at all', function (): void {
-    $this->actingAs($this->student->user)->get('/reports')->assertForbidden();
-
-    $this->actingAs($this->student->user)
-        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
+test('downloading a report the user may not open is forbidden', function (): void {
+    $this->actingAs(userWithRole(RoleName::PembimbingIndustri))
+        ->get('/reports/assessment/download?format=pdf')
         ->assertForbidden();
 });
 
-test('a supervisor can not generate a report type they lack', function (): void {
-    Storage::fake('local');
-
-    $supervisor = CompanySupervisor::factory()->create(['company_id' => $this->company->id]);
-
-    // Pembimbing Industri may pull attendance and journal recaps, never assessment.
-    $this->actingAs($supervisor->user)
-        ->post('/reports', ['type' => 'assessment', 'format' => 'pdf'])
-        ->assertForbidden();
-
-    $this->actingAs($supervisor->user)
+test('the old generate route is gone', function (): void {
+    $this->actingAs(userWithRole(RoleName::AdminPkl))
         ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
-        ->assertSessionHasNoErrors();
-});
-
-test('a report covers only the placements its requester may see', function (): void {
-    // A second placement under a different teacher and company.
-    Placement::factory()->active()->create();
-
-    $guru = $this->teacher->user;
-    $export = ReportExport::factory()->create([
-        'requested_by' => $guru->id,
-        'type' => ReportType::Attendance,
-        'format' => ReportFormat::Pdf,
-    ]);
-
-    $dataset = app(ReportService::class)->build($export);
-
-    // The guru's recap contains their one student, not the other teacher's.
-    expect($dataset->rows)->toHaveCount(1)
-        ->and($dataset->rows[0][0])->toBe($this->student->name);
-});
-
-test('the owner can delete a report and its file', function (): void {
-    Storage::fake('local');
-
-    $owner = userWithRole(RoleName::AdminPkl);
-
-    $this->actingAs($owner)
-        ->post('/reports', ['type' => 'attendance', 'format' => 'pdf'])
-        ->assertSessionHasNoErrors();
-
-    $export = ReportExport::query()->where('requested_by', $owner->id)->sole();
-    $path = $export->file_path;
-
-    $this->actingAs($owner)->delete("/reports/{$export->id}")->assertSessionHasNoErrors();
-
-    Storage::disk('local')->assertMissing($path);
-    expect(ReportExport::query()->whereKey($export->id)->exists())->toBeFalse();
+        ->assertStatus(405);
 });

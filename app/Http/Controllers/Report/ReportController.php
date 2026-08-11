@@ -4,77 +4,152 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Report;
 
+use App\DataTransferObjects\ReportFilters;
 use App\DataTransferObjects\TableRequest;
 use App\Enums\PlacementStatus;
 use App\Enums\ReportFormat;
-use App\Enums\ReportStatus;
 use App\Enums\ReportType;
 use App\Exports\ReportSpreadsheet;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Report\StoreReportRequest;
+use App\Http\Requests\Report\ReportFilterRequest;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Placement;
-use App\Models\ReportExport;
+use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Teacher;
 use App\Services\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Excel as ExcelWriter;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Throwable;
 
+/**
+ * Reports are read, not generated: each type is a page whose filters are its URL.
+ * Nothing is written to disk — a download re-runs the same query and streams it.
+ */
 class ReportController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): RedirectResponse
     {
-        $this->authorize('viewAny', ReportExport::class);
+        $this->authorize('viewAny', ReportType::class);
 
         $user = $request->user();
-        $table = TableRequest::fromRequest($request);
 
-        $exports = ReportExport::query()
-            ->visibleTo($user)
-            ->latest()
-            ->paginate($table->perPage)
-            ->withQueryString();
+        $first = collect(ReportType::cases())
+            ->first(fn (ReportType $type): bool => $user->can($type->permission()));
 
-        // A sidebar shortcut arrives as ?type=…; honour it only if the user may
-        // actually generate that kind, otherwise let the form pick its first option.
-        $requested = ReportType::tryFrom((string) $request->query('type', ''));
-        $initialType = $requested !== null && $user->can($requested->permission())
-            ? $requested->value
-            : null;
+        return redirect()->route('reports.show', ['type' => $first->value]);
+    }
 
-        return Inertia::render('reports/index', [
-            'exports' => $exports,
-            'table' => $table->toArray(),
-            'initialType' => $initialType,
-            // Only the report kinds this user is allowed to generate.
-            'types' => collect(ReportType::cases())
-                ->filter(fn (ReportType $type): bool => $user->can($type->permission()))
-                ->map(fn (ReportType $type): array => ['value' => $type->value, 'label' => $type->label()])
-                ->values(),
+    public function show(ReportFilterRequest $request, ReportType $type, ReportService $service): Response
+    {
+        $this->authorize('view', $type);
+
+        $user = $request->user();
+        $filters = ReportFilters::fromRequest($request, $type);
+
+        return Inertia::render('reports/show', [
+            'type' => ['value' => $type->value, 'label' => $type->label()],
+            'columns' => $type->columns(),
+            'scope' => $filters->describeScope(),
+            'rows' => $type === ReportType::StudentSummary
+                ? null
+                : $service->paginate($type, $filters, $user, $request->integer('page', 1)),
+            'summary' => $type === ReportType::StudentSummary
+                ? $service->studentSummary($filters, $user)
+                : null,
+            'filters' => $filters->toArray(),
+            'table' => TableRequest::fromRequest($request, [
+                'date_from', 'date_to', 'department_id', 'company_id',
+                'school_class_id', 'teacher_id', 'student_id',
+            ])->toArray(),
             'formats' => collect(ReportFormat::cases())
                 ->map(fn (ReportFormat $format): array => ['value' => $format->value, 'label' => $format->label()])
                 ->values(),
-            'filterOptions' => [
-                'departments' => $user->can('departments.viewAny')
-                    ? Department::query()->orderBy('name')->get(['id', 'name'])
-                    : [],
-                // Scoped: a supervisor only ever sees their own company here.
-                'companies' => $user->can('companies.viewAny')
-                    ? Company::query()->visibleTo($user)->orderBy('name')->get(['id', 'name'])
-                    : [],
-            ],
-            'students' => $user->can('reports.student_summary')
+            'filterOptions' => $this->filterOptions($request, $type),
+        ]);
+    }
+
+    public function download(ReportFilterRequest $request, ReportType $type, ReportService $service): StreamedResponse
+    {
+        $this->authorize('view', $type);
+
+        $user = $request->user();
+        $filters = ReportFilters::fromRequest($request, $type);
+
+        // Rekap Siswa has no spreadsheet shape; it is always the PDF card.
+        $format = $type === ReportType::StudentSummary
+            ? ReportFormat::Pdf
+            : ($request->enum('format', ReportFormat::class) ?? ReportFormat::Pdf);
+
+        if ($type === ReportType::StudentSummary) {
+            $summary = $service->studentSummary($filters, $user);
+
+            abort_if($summary === null, 404, 'Siswa tidak memiliki penempatan yang dapat dilaporkan.');
+
+            $contents = Pdf::loadView('reports.student-summary', ['dataset' => $summary])->output();
+        } else {
+            $dataset = $service->dataset($type, $filters, $user);
+
+            $contents = match ($format) {
+                ReportFormat::Pdf => Pdf::loadView('reports.pdf', ['dataset' => $dataset])->output(),
+                ReportFormat::Xlsx => Excel::raw(new ReportSpreadsheet($dataset), ExcelWriter::XLSX),
+            };
+        }
+
+        $fileName = Str::slug($type->label())
+            .'-'.CarbonImmutable::now()->format('Ymd-His')
+            .'.'.$format->extension();
+
+        // No model to log against, so the download is recorded by hand — this is
+        // the moment student data leaves the app.
+        activity('report')
+            ->causedBy($user)
+            ->withProperties([
+                'type' => $type->value,
+                'format' => $format->value,
+                'filters' => $filters->toArray(),
+            ])
+            ->log('report.download');
+
+        return response()->streamDownload(
+            fn () => print ($contents),
+            $fileName,
+            ['Content-Type' => $format->contentType()],
+        );
+    }
+
+    /**
+     * Option lists for the filter bar, each one scoped to what the user may see.
+     *
+     * @return array<string, mixed>
+     */
+    private function filterOptions(Request $request, ReportType $type): array
+    {
+        $user = $request->user();
+
+        return [
+            'departments' => $user->can('departments.viewAny')
+                ? Department::query()->orderBy('name')->get(['id', 'name'])
+                : [],
+            'classes' => $user->can('school-classes.viewAny')
+                ? SchoolClass::query()->orderBy('name')->get(['id', 'name'])
+                : [],
+            // Scoped: a supervisor only ever sees their own company here.
+            'companies' => $user->can('companies.viewAny')
+                ? Company::query()->visibleTo($user)->orderBy('name')->get(['id', 'name'])
+                : [],
+            'teachers' => $user->can('teachers.viewAny')
+                ? Teacher::query()->orderBy('name')->get(['id', 'name'])
+                : [],
+            'students' => $type === ReportType::StudentSummary
                 ? Placement::query()
                     ->visibleTo($user)
                     ->whereIn('status', [PlacementStatus::Active->value, PlacementStatus::Completed->value])
@@ -83,95 +158,12 @@ class ReportController extends Controller
                     ->pluck('student')
                     ->unique('id')
                     ->sortBy('name')
-                    ->map(fn (Student $s): array => [
-                        'value' => $s->id,
-                        'label' => "{$s->name} — {$s->nis} ({$s->schoolClass->name})",
+                    ->map(fn (Student $student): array => [
+                        'value' => $student->id,
+                        'label' => "{$student->name} — {$student->nis} ({$student->schoolClass->name})",
                     ])
                     ->values()
                 : [],
-        ]);
-    }
-
-    public function store(StoreReportRequest $request, ReportService $service): RedirectResponse
-    {
-        $type = $request->enum('type', ReportType::class);
-        $format = $type === ReportType::StudentSummary ? ReportFormat::Pdf : $request->enum('format', ReportFormat::class);
-
-        $export = ReportExport::create([
-            'requested_by' => $request->user()->id,
-            'type' => $type,
-            'format' => $format,
-            'filters' => $request->filters(),
-            'status' => ReportStatus::Processing,
-        ]);
-
-        try {
-            if ($type === ReportType::StudentSummary) {
-                $summary = $service->buildStudentSummary($export);
-                $contents = Pdf::loadView('reports.student-summary', ['dataset' => $summary])->output();
-                $rowCount = 1;
-            } else {
-                $dataset = $service->build($export);
-                $contents = match ($export->format) {
-                    ReportFormat::Pdf => Pdf::loadView('reports.pdf', ['dataset' => $dataset])->output(),
-                    ReportFormat::Xlsx => Excel::raw(new ReportSpreadsheet($dataset), ExcelWriter::XLSX),
-                };
-                $rowCount = count($dataset->rows);
-            }
-
-            $path = 'reports/'.$export->id.'.'.$export->format->extension();
-            $fileName = Str::slug($export->type->label())
-                .'-'.CarbonImmutable::now()->format('Ymd-His')
-                .'.'.$export->format->extension();
-
-            // Private disk: reports contain student data and are only ever streamed
-            // back to their owner through the authorized download route.
-            Storage::disk('local')->put($path, $contents);
-
-            $export->update([
-                'status' => ReportStatus::Completed,
-                'file_path' => $path,
-                'file_name' => $fileName,
-                'row_count' => $rowCount,
-                'completed_at' => CarbonImmutable::now(),
-            ]);
-        } catch (Throwable $exception) {
-            $export->update([
-                'status' => ReportStatus::Failed,
-                'error' => Str::limit($exception->getMessage(), 1000),
-            ]);
-        }
-
-        return back()->with('success', 'Laporan berhasil dibuat.');
-    }
-
-    public function download(ReportExport $report): StreamedResponse
-    {
-        $this->authorize('download', $report);
-
-        abort_unless($report->isDownloadable(), 404, 'Laporan belum siap.');
-
-        $path = (string) $report->file_path;
-
-        abort_unless(Storage::disk('local')->exists($path), 404, 'Berkas laporan tidak ditemukan.');
-
-        return Storage::disk('local')->download(
-            $path,
-            $report->file_name ?? 'laporan.'.$report->format->extension(),
-            ['Content-Type' => $report->format->contentType()],
-        );
-    }
-
-    public function destroy(ReportExport $report): RedirectResponse
-    {
-        $this->authorize('delete', $report);
-
-        if ($report->file_path !== null) {
-            Storage::disk('local')->delete($report->file_path);
-        }
-
-        $report->delete();
-
-        return back()->with('success', 'Laporan dihapus.');
+        ];
     }
 }
