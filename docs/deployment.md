@@ -64,13 +64,13 @@ Ulangi buat keduanya — Dokploy → Project → Create → **Application** → 
 - Compose path: `docker-compose.yml` (root repo)
 - **Build Type: none / pull only** — jangan pilih build dari Dockerfile. Dokploy Compose app defaultnya cuma jalankan `docker compose pull && docker compose up -d` kalau tidak diarahkan build, jadi image ditarik langsung dari GHCR, bukan dibangun ulang di VPS.
 - Registry: pilih yang dari §4.2 (kalau private)
-- Domain: arahkan ke service **`web`**, port container **8081** (di-set via `NGINX_HTTP_PORT` di compose, default image sebenarnya 8080) — subdomain terpisah buat staging (misal `staging.your-domain`)
+- Domain: arahkan ke service **`app`**, port container **8081** (di-set via `NGINX_HTTP_PORT` di compose, default image sebenarnya 8080) — subdomain terpisah buat staging (misal `staging.your-domain`)
 
 Compose punya 3 service dari image yang sama:
 
 | Service | Fungsi |
 |---|---|
-| `web` | nginx + php-fpm, satu-satunya yang kena domain & jalanin migration |
+| `app` | nginx + php-fpm, satu-satunya yang kena domain & jalanin migration |
 | `queue` | `php artisan queue:work` — tanpa ini job antrian gak pernah diproses |
 | `scheduler` | `php artisan schedule:work` — jalanin jadwal di `routes/console.php` |
 
@@ -114,9 +114,11 @@ Kalau `SESSION_SECURE_COOKIE=true` tapi domain masih diakses lewat `http://` (be
 
 Compose pakai `pull_policy: always`. Ini wajib: `latest`/`staging` itu moving tag, dan `docker compose up -d` defaultnya (`pull_policy: missing`) **gak nge-pull** kalau tag itu udah ada di cache lokal VPS — container tetap restart tapi jalanin kode lama, dan gejalanya bikin bingung (deploy "sukses", webhook hijau, tapi bug lama gak hilang).
 
-Var `AUTORUN_*` di compose itu entrypoint hook image `serversideup/php` — jalankan migration + cache warmup saat container start, tidak perlu entrypoint script custom. `AUTORUN_LARAVEL_MIGRATION` jalankan `php artisan migrate --force`, dan sengaja cuma `true` di service `web` — kalau ketiga container migrate barengan pas boot, mereka saling balapan.
+Var `AUTORUN_*` di compose itu entrypoint hook image `serversideup/php` — jalankan migration + cache warmup saat container start, tidak perlu entrypoint script custom. `AUTORUN_LARAVEL_MIGRATION` jalankan `php artisan migrate --force`, dan sengaja cuma `true` di service `app` — kalau ketiga container migrate barengan pas boot, mereka saling balapan.
 
-`HEALTHCHECK_PATH: /up` juga di-set di `web`. Default image nunjuk `/healthcheck` yang gak ada di app ini, jadi log nginx keisi `upstream timed out ... "GET /healthcheck"` terus-terusan; `/up` itu health route bawaan Laravel yang emang terdaftar di `bootstrap/app.php`.
+Nama service `app` gak boleh diganti: Dokploy ngiket konfigurasi domain ke nama service, dan begitu namanya beda, deploy langsung gagal dengan `Domain ... is attached to service app which does not exist in the compose`.
+
+`HEALTHCHECK_PATH: /up` juga di-set di `app`. Default image nunjuk `/healthcheck` yang gak ada di app ini, jadi log nginx keisi `upstream timed out ... "GET /healthcheck"` terus-terusan; `/up` itu health route bawaan Laravel yang emang terdaftar di `bootstrap/app.php`.
 
 Jangan pernah share `APP_KEY`, DB, atau bucket S3 antara production dan staging — secret terpisah, data terpisah.
 
