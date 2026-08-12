@@ -1,53 +1,88 @@
+x-app: &app
+  image: ghcr.io/${GHCR_OWNER}/${GHCR_REPO}:${IMAGE_TAG:-latest}
+  # `latest`/`staging` are moving tags: a plain `compose up -d` reuses the
+  # locally cached image and silently redeploys stale code. Always re-pull.
+  pull_policy: always
+  # Dokploy writes this file from the app's Environment tab, so every
+  # APP_*/DB_*/SESSION_* var lands here. Commenting a var out there removes it
+  # entirely, which is what Laravel's env() defaults expect.
+  env_file:
+    - .env
+  restart: unless-stopped
+  stop_grace_period: 30s
+  volumes:
+    - storage:/var/www/html/storage/app
+
 services:
-  app:
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_REPO}:${IMAGE_TAG:-latest}
-    # `latest`/`staging` are moving tags: a plain `compose up -d` reuses the
-    # locally cached image and silently redeploys stale code. Always re-pull.
-    pull_policy: always
-    restart: unless-stopped
+  web:
+    <<: *app
+    expose:
+      - "8081"
     environment:
-      APP_NAME: ${APP_NAME}
-      APP_ENV: ${APP_ENV}
-      APP_KEY: ${APP_KEY}
-      APP_DEBUG: ${APP_DEBUG:-false}
-      APP_URL: ${APP_URL}
-      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
-
-      DB_CONNECTION: pgsql
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-
-      SESSION_DRIVER: database
-      SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
-      SESSION_ENCRYPT: ${SESSION_ENCRYPT:-false}
-      SESSION_PATH: ${SESSION_PATH:-/}
-      SESSION_DOMAIN: ${SESSION_DOMAIN:-null}
-      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
-      QUEUE_CONNECTION: database
-      CACHE_STORE: database
-      FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
-
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-}
-      AWS_BUCKET: ${AWS_BUCKET:-}
-      AWS_USE_PATH_STYLE_ENDPOINT: ${AWS_USE_PATH_STYLE_ENDPOINT:-false}
-
+      NGINX_HTTP_PORT: "8081"
+      HEALTHCHECK_PATH: /up
       AUTORUN_ENABLED: "true"
+      # Only the web container migrates — otherwise all three race on boot.
       AUTORUN_LARAVEL_MIGRATION: "true"
       AUTORUN_LARAVEL_STORAGE_LINK: "true"
       AUTORUN_LARAVEL_CONFIG_CACHE: "true"
       AUTORUN_LARAVEL_ROUTE_CACHE: "true"
       AUTORUN_LARAVEL_VIEW_CACHE: "true"
+      PHP_OPCACHE_ENABLE: "1"
+      PHP_UPLOAD_MAX_FILE_SIZE: 10M
+      PHP_POST_MAX_SIZE: 12M
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', '--silent', 'http://localhost:8081/up']
+      interval: 15s
+      timeout: 5s
+      start_period: 45s
+      retries: 5
 
-      NGINX_HTTP_PORT: "8081"
-    volumes:
-      - storage:/var/www/html/storage/app
-    expose:
-      - "8081"
+  # routes/console.php schedules queued jobs (mark-absent-students,
+  # complete-expired-placements). Without these two services they never run.
+  queue:
+    <<: *app
+    command:
+      - php
+      - /var/www/html/artisan
+      - queue:work
+      - --sleep=3
+      - --tries=3
+      - --timeout=90
+      - --max-time=3600
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION: "false"
+      PHP_OPCACHE_ENABLE: "1"
+    healthcheck:
+      test: ['CMD', 'healthcheck-queue']
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  scheduler:
+    <<: *app
+    command:
+      - php
+      - /var/www/html/artisan
+      - schedule:work
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION: "false"
+      PHP_OPCACHE_ENABLE: "1"
+    healthcheck:
+      test: ['CMD', 'healthcheck-schedule']
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
 volumes:
   storage:

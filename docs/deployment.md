@@ -64,11 +64,23 @@ Ulangi buat keduanya — Dokploy → Project → Create → **Application** → 
 - Compose path: `docker-compose.yml` (root repo)
 - **Build Type: none / pull only** — jangan pilih build dari Dockerfile. Dokploy Compose app defaultnya cuma jalankan `docker compose pull && docker compose up -d` kalau tidak diarahkan build, jadi image ditarik langsung dari GHCR, bukan dibangun ulang di VPS.
 - Registry: pilih yang dari §4.2 (kalau private)
-- Domain: arahkan ke service `app`, port container **8081** (di-set via `NGINX_HTTP_PORT` di compose, default image sebenarnya 8080) — subdomain terpisah buat staging (misal `staging.your-domain`)
+- Domain: arahkan ke service **`web`**, port container **8081** (di-set via `NGINX_HTTP_PORT` di compose, default image sebenarnya 8080) — subdomain terpisah buat staging (misal `staging.your-domain`)
+
+Compose punya 3 service dari image yang sama:
+
+| Service | Fungsi |
+|---|---|
+| `web` | nginx + php-fpm, satu-satunya yang kena domain & jalanin migration |
+| `queue` | `php artisan queue:work` — tanpa ini job antrian gak pernah diproses |
+| `scheduler` | `php artisan schedule:work` — jalanin jadwal di `routes/console.php` |
+
+`queue` dan `scheduler` wajib ada: `routes/console.php` jadwalin `MarkAbsentStudentsJob` (harian 18:00) dan `CompleteExpiredPlacementsJob` (harian 00:30), keduanya `ShouldQueue`. Tanpa dua service itu, siswa gak pernah ditandai absen dan placement kadaluarsa gak pernah pindah ke `completed` — diam-diam, tanpa error.
 
 ### 4.4 Environment variables
 
-`docker-compose.yml` baca semua nilai lewat `${VAR}` — isi di tab Environment app Dokploy (nilai dari `.env.example`, disesuaikan per environment):
+Compose pakai `env_file: .env` — Dokploy nulis file itu otomatis dari tab Environment app, jadi semua var di bawah kebaca tanpa perlu didaftarin satu-satu di compose. Efek sampingnya: nge-comment sebuah var di tab Environment beneran menghapusnya (bukan ngirim string kosong), jadi default `env()` di Laravel yang dipakai.
+
+Isi di tab Environment app Dokploy (nilai dari `.env.example`, disesuaikan per environment):
 
 ```
 GHCR_OWNER=<owner>
@@ -102,7 +114,9 @@ Kalau `SESSION_SECURE_COOKIE=true` tapi domain masih diakses lewat `http://` (be
 
 Compose pakai `pull_policy: always`. Ini wajib: `latest`/`staging` itu moving tag, dan `docker compose up -d` defaultnya (`pull_policy: missing`) **gak nge-pull** kalau tag itu udah ada di cache lokal VPS — container tetap restart tapi jalanin kode lama, dan gejalanya bikin bingung (deploy "sukses", webhook hijau, tapi bug lama gak hilang).
 
-Var `AUTORUN_*` di compose itu entrypoint hook image `serversideup/php` — jalankan migration + cache warmup saat container start, tidak perlu entrypoint script custom. `AUTORUN_LARAVEL_MIGRATION` jalankan `php artisan migrate --force`.
+Var `AUTORUN_*` di compose itu entrypoint hook image `serversideup/php` — jalankan migration + cache warmup saat container start, tidak perlu entrypoint script custom. `AUTORUN_LARAVEL_MIGRATION` jalankan `php artisan migrate --force`, dan sengaja cuma `true` di service `web` — kalau ketiga container migrate barengan pas boot, mereka saling balapan.
+
+`HEALTHCHECK_PATH: /up` juga di-set di `web`. Default image nunjuk `/healthcheck` yang gak ada di app ini, jadi log nginx keisi `upstream timed out ... "GET /healthcheck"` terus-terusan; `/up` itu health route bawaan Laravel yang emang terdaftar di `bootstrap/app.php`.
 
 Jangan pernah share `APP_KEY`, DB, atau bucket S3 antara production dan staging — secret terpisah, data terpisah.
 
