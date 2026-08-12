@@ -1,6 +1,9 @@
 services:
   app:
     image: ghcr.io/${GHCR_OWNER}/${GHCR_REPO}:${IMAGE_TAG:-latest}
+    # `latest`/`staging` are moving tags: a plain `compose up -d` reuses the
+    # locally cached image and silently redeploys stale code. Always re-pull.
+    pull_policy: always
     restart: unless-stopped
     environment:
       APP_NAME: ${APP_NAME}

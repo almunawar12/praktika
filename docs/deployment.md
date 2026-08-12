@@ -100,6 +100,8 @@ Kalau `SESSION_SECURE_COOKIE=true` tapi domain masih diakses lewat `http://` (be
 
 `IMAGE_TAG` ini kunci "gak build di VPS" — app production isi `latest`, app staging isi `staging`, keduanya nunjuk tag yang sama yang di-push CI (§3), compose cuma pull.
 
+Compose pakai `pull_policy: always`. Ini wajib: `latest`/`staging` itu moving tag, dan `docker compose up -d` defaultnya (`pull_policy: missing`) **gak nge-pull** kalau tag itu udah ada di cache lokal VPS — container tetap restart tapi jalanin kode lama, dan gejalanya bikin bingung (deploy "sukses", webhook hijau, tapi bug lama gak hilang).
+
 Var `AUTORUN_*` di compose itu entrypoint hook image `serversideup/php` — jalankan migration + cache warmup saat container start, tidak perlu entrypoint script custom. `AUTORUN_LARAVEL_MIGRATION` jalankan `php artisan migrate --force`.
 
 Jangan pernah share `APP_KEY`, DB, atau bucket S3 antara production dan staging — secret terpisah, data terpisah.
